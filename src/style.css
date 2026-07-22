@@ -753,10 +753,10 @@ body.dark-theme .success-message {
   /* Sliding Bottom Sheet Container for Portrait Mobiles */
   .content-container {
     position: absolute;
-    bottom: 50px; /* Space for the simplified location footer */
+    bottom: 60px; /* Space for the simplified location footer */
     left: 16px;
     width: calc(100% - 32px);
-    height: 42%; /* Occupy bottom 42% height */
+    height: 52%; /* Occupy bottom 52% height */
     margin: 0;
     z-index: 10;
     pointer-events: none;
@@ -775,6 +775,8 @@ body.dark-theme .success-message {
     opacity: 0;
     pointer-events: none;
     transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   .info-card.active {
@@ -845,55 +847,6 @@ body.dark-theme .success-message {
 
   .action-buttons {
     flex-direction: row;
-  }
-}
-
-/* Hide default cursor on desktop for fine pointers */
-@media (min-width: 769px) and (pointer: fine) {
-  body, html, a, button, .btn, .nav-btn, .project-card, .theme-toggle, .widget-toggle-btn, .widget-btn, .widget-btn-room, canvas {
-    cursor: none !important;
-  }
-}
-
-/* Custom animated cursors */
-.custom-cursor-dot {
-  position: fixed;
-  width: 8px;
-  height: 8px;
-  background-color: var(--text-highlight);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 10000;
-  transform: translate(-50%, -50%);
-  display: none;
-}
-
-.custom-cursor-ring {
-  position: fixed;
-  width: 32px;
-  height: 32px;
-  border: 2px solid var(--text-highlight);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9999;
-  transform: translate(-50%, -50%);
-  transition: width 0.22s cubic-bezier(0.25, 1, 0.5, 1), 
-              height 0.22s cubic-bezier(0.25, 1, 0.5, 1), 
-              background-color 0.22s ease, 
-              border-color 0.22s ease;
-  display: none;
-}
-
-.custom-cursor-ring.hover {
-  width: 48px;
-  height: 48px;
-  background-color: rgba(224, 122, 95, 0.12);
-  border-color: var(--text-highlight);
-}
-
-@media (min-width: 769px) and (pointer: fine) {
-  .custom-cursor-dot, .custom-cursor-ring {
-    display: block;
   }
 }
 
@@ -1060,3 +1013,174 @@ body.dark-theme .widget-btn-room {
     width: 220px;
   }
 }
+
+/* ==========================================================================
+   Project Space flight Detail Overlay Styling
+   ========================================================================== */
+.project-detail-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(4, 5, 12, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.project-detail-overlay.active {
+  pointer-events: all;
+  opacity: 1;
+}
+
+.project-detail-window {
+  background: rgba(13, 17, 34, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(224, 122, 95, 0.2);
+  border-radius: 24px;
+  padding: 40px;
+  width: 680px;
+  max-width: 90%;
+  max-height: 85vh;
+  overflow-y: auto;
+  color: #f3f4f6;
+  transform: scale(0.92) translateY(40px);
+  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(224, 122, 95, 0.4) rgba(0, 0, 0, 0.2);
+}
+
+.project-detail-overlay.active .project-detail-window {
+  transform: scale(1) translateY(0);
+}
+
+.project-detail-window::-webkit-scrollbar {
+  width: 6px;
+}
+.project-detail-window::-webkit-scrollbar-thumb {
+  background-color: rgba(224, 122, 95, 0.4);
+  border-radius: 10px;
+}
+
+.close-detail-btn {
+  background: var(--text-highlight);
+  border: none;
+  border-radius: 12px;
+  color: white;
+  padding: 11px 22px;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 15px rgba(224, 122, 95, 0.4);
+}
+
+.close-detail-btn:hover {
+  background: #d6684c;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(224, 122, 95, 0.5);
+}
+
+.close-detail-btn:active {
+  transform: translateY(0);
+}
+
+.project-detail-meta {
+  font-size: 0.76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-highlight);
+  letter-spacing: 2px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.project-detail-title {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 16px;
+  color: #ffffff;
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.15);
+}
+
+.project-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.project-detail-tags span {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.project-detail-divider {
+  border: none;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.12);
+  margin: 0 0 28px 0;
+}
+
+.project-detail-section {
+  margin-bottom: 28px;
+}
+
+.project-detail-section h4 {
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--text-highlight);
+  margin-bottom: 12px;
+  letter-spacing: 1px;
+}
+
+.project-detail-section p {
+  font-size: 0.96rem;
+  line-height: 1.65;
+  color: #d1d5db;
+}
+
+.project-detail-section ul {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-detail-section li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 0.94rem;
+  line-height: 1.55;
+  color: #d1d5db;
+}
+
+.project-detail-section li::before {
+  content: "✦";
+  position: absolute;
+  left: 0;
+  top: 0;
+  color: var(--text-highlight);
+  font-size: 0.85rem;
+}
+

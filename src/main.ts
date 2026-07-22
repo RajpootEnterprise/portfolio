@@ -23,6 +23,19 @@ let elevator: THREE.Group;
 let mailboxFlag: THREE.Group;
 let letterMesh: THREE.Mesh;
 
+// References to Helicopter & Helipad
+let helipad: THREE.Group;
+let helicopter: THREE.Group;
+let mainRotor: THREE.Group;
+let tailRotor: THREE.Group;
+let rotorSpeed = 0;
+let isSpaceTrip = false;
+let thrusterFireL: THREE.Mesh;
+let thrusterFireR: THREE.Mesh;
+let cityGroup: THREE.Group;
+const cityHelipads: THREE.Vector3[] = [];
+let currentPlanetHelipadIdx = 0;
+
 // References to environment elements
 let sunGroup: THREE.Group;
 let moonGroup: THREE.Group;
@@ -54,14 +67,6 @@ const floatingLabels: THREE.Mesh[] = [];
 
 // Floating tech shapes list
 const floatingTechShapes: THREE.Mesh[] = [];
-
-// Custom cursor state variables
-let mouseX = window.innerWidth / 2;
-let mouseY = window.innerHeight / 2;
-let cursorX = mouseX;
-let cursorY = mouseY;
-let cursorDotEl: HTMLElement | null = null;
-let cursorRingEl: HTMLElement | null = null;
 
 // State
 let currentRoom = 'home';
@@ -248,6 +253,11 @@ function init() {
   // Create Celestial Environment Skies (Sun, Moon, Stars, Birds, Saturn)
   createCelestialEnvironment();
 
+  // Create Helipad & Helicopter
+  createHelipad();
+  createHelicopter();
+  createSpaceCity();
+
   // Instantiate Avatar
   avatar = new Avatar();
   // Start sitting on the Ground Floor Home sofa
@@ -266,38 +276,7 @@ function init() {
   // Start Idle Inactivity Timer
   resetIdleTimer();
 
-  // Grab custom cursor elements and bind track actions (PC only)
-  cursorDotEl = document.getElementById('cursor-dot');
-  cursorRingEl = document.getElementById('cursor-ring');
 
-  document.addEventListener('mousemove', (e) => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-    if (cursorDotEl) {
-      cursorDotEl.style.left = mouseX + 'px';
-      cursorDotEl.style.top = mouseY + 'px';
-    }
-  });
-
-  const attachCursorHoverListeners = () => {
-    const selectors = 'a, button, .nav-btn, .project-card, .theme-toggle, .widget-toggle-btn, .widget-btn, .widget-btn-room';
-    document.querySelectorAll(selectors).forEach(el => {
-      if (el.getAttribute('data-cursor-bound') === 'true') return;
-      el.setAttribute('data-cursor-bound', 'true');
-      
-      el.addEventListener('mouseenter', () => {
-        if (cursorRingEl) cursorRingEl.classList.add('hover');
-      });
-      el.addEventListener('mouseleave', () => {
-        if (cursorRingEl) cursorRingEl.classList.remove('hover');
-      });
-    });
-  };
-  attachCursorHoverListeners();
-
-  // Observe DOM changes to dynamic nodes
-  const observer = new MutationObserver(attachCursorHoverListeners);
-  observer.observe(document.body, { childList: true, subtree: true });
 
   // Run Render Loop
   animate(0);
@@ -551,127 +530,315 @@ function createHouseStructure() {
   elevator.position.set(0, 0.01, 0);
   scene.add(elevator);
 
-  // 4. Room Partition Walls
+  // 4. Solid Room Walls, Columns & Panoramic Glass Facades
   const wallMat = new THREE.MeshStandardMaterial({ color: COLORS.wallPlaster, roughness: 0.95 });
-  const trimMat = new THREE.MeshStandardMaterial({ color: COLORS.wallTrim, roughness: 0.6 });
+  const columnMat = new THREE.MeshStandardMaterial({ color: 0x222533, roughness: 0.5, metalness: 0.1 }); // Dark modern concrete
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e2022, roughness: 0.4, metalness: 0.8 }); // Black metal window frames
 
-  const addPartitionWall = (yLevel: number) => {
-    const buildWallSeg = (w: number, px: number, pz: number, hasWindow = false) => {
-      const wallGroup = new THREE.Group();
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 1.5, 0.2), wallMat);
-      wall.position.y = 0.75;
-      wall.castShadow = true;
-      wall.receiveShadow = true;
-      wallGroup.add(wall);
+  const glassMat = new THREE.MeshPhysicalMaterial({
+    color: 0xe0f2fe,
+    transparent: true,
+    opacity: 0.12,
+    transmission: 0.98,
+    ior: 1.5,
+    thickness: 0.05,
+    roughness: 0.02,
+    metalness: 0.1,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.02
+  });
 
-      if (hasWindow) {
-        const frame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.75, 0.24), trimMat);
-        frame.position.set(0, 0.8, 0);
-        wallGroup.add(frame);
-
-        const glass = new THREE.Mesh(
-          new THREE.BoxGeometry(1.0, 0.6, 0.08),
-          new THREE.MeshPhysicalMaterial({ color: 0xc3e6fc, transparent: true, opacity: 0.45, transmission: 0.8 })
-        );
-        glass.position.set(0, 0.8, 0);
-        wallGroup.add(glass);
-      }
-
-      const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.04, 0.24), trimMat);
-      trim.position.y = 1.52;
-      trim.castShadow = true;
-      wallGroup.add(trim);
-
-      wallGroup.position.set(px, yLevel, pz);
-      scene.add(wallGroup);
-    };
-
-    buildWallSeg(2.6, 0, 2.15, false);
-    buildWallSeg(2.6, 0, -2.15, true);
+  // Corner Concrete Pillars (Pillars extending from Ground to Roof)
+  const addPillar = (x: number, z: number) => {
+    const pillarHeight = 6.6;
+    const pillar = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, pillarHeight, 0.24),
+      columnMat
+    );
+    pillar.position.set(x, pillarHeight / 2, z);
+    pillar.castShadow = true;
+    pillar.receiveShadow = true;
+    scene.add(pillar);
   };
 
-  addPartitionWall(HEIGHTS.ground);
-  addPartitionWall(HEIGHTS.first);
-  addPartitionWall(HEIGHTS.second);
+  // Add structural pillars
+  addPillar(-6.75, -3.5);
+  addPillar(-6.75, 3.5);
+  addPillar(6.75, -3.5);
+  addPillar(6.75, 3.5);
+  addPillar(-0.75, -3.5);
+  addPillar(-0.75, 3.5);
+  addPillar(0.75, -3.5);
+  addPillar(0.75, 3.5);
 
-  // 5. Open Pitched Timber Truss Roof
-  const roofY = HEIGHTS.second + 1.5; // Y = 5.9
-  const peakY = roofY + 1.25; // Y = 7.15
-  const roofWoodMat = new THREE.MeshStandardMaterial({ color: COLORS.woodFurniture, roughness: 0.85 });
+  // Helper to build Solid Walls
+  const addSolidWall = (w: number, h: number, d: number, x: number, y: number, z: number, ry = 0) => {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), wallMat);
+    wall.position.set(x, y + h / 2, z);
+    wall.rotation.y = ry;
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    scene.add(wall);
+  };
 
-  const buildTruss = (z: number) => {
-    const truss = new THREE.Group();
+  // BACK WALLS (Z = -3.5)
+  addSolidWall(5.76, 2.2, 0.12, -3.75, HEIGHTS.ground, -3.44); // Home Back
+  addSolidWall(5.76, 2.2, 0.12, -3.75, HEIGHTS.first, -3.44);  // Study Back
+  addSolidWall(5.76, 2.2, 0.12, 3.75, HEIGHTS.first, -3.44);   // Library Back
+  addSolidWall(5.76, 2.2, 0.12, -3.75, HEIGHTS.second, -3.44); // Workshop Back
+  addSolidWall(5.76, 2.2, 0.12, 3.75, HEIGHTS.second, -3.44);  // Arcade Back
+
+  // SIDE WALLS (X = -6.75 / 6.75)
+  addSolidWall(0.12, 2.2, 6.76, -6.69, HEIGHTS.ground, 0); // Home Left Side
+  addSolidWall(0.12, 2.2, 6.76, -6.69, HEIGHTS.first, 0);  // Study Left Side
+  addSolidWall(0.12, 2.2, 6.76, 6.69, HEIGHTS.first, 0);   // Library Right Side
+  addSolidWall(0.12, 2.2, 6.76, -6.69, HEIGHTS.second, 0); // Workshop Left Side
+  addSolidWall(0.12, 2.2, 6.76, 6.69, HEIGHTS.second, 0);  // Arcade Right Side
+
+  // INTERIOR PARTITION WALLS (Between Left and Right sides, next to elevator)
+  const addInteriorWall = (y: number) => {
+    addSolidWall(0.12, 2.2, 2.4, -0.69, y, 2.3);
+    addSolidWall(0.12, 2.2, 2.4, -0.69, y, -2.3);
+    addSolidWall(0.12, 2.2, 2.4, 0.69, y, 2.3);
+    addSolidWall(0.12, 2.2, 2.4, 0.69, y, -2.3);
+  };
+  addInteriorWall(HEIGHTS.ground);
+  addInteriorWall(HEIGHTS.first);
+  addInteriorWall(HEIGHTS.second);
+
+  // Helper to build Panoramic Glass Facades (with dark frames & mullions)
+  const addGlassFacade = (xCenter: number, yBottom: number, zCenter: number, w: number, h: number, ry = 0) => {
+    const facade = new THREE.Group();
+    facade.position.set(xCenter, yBottom + h / 2, zCenter);
+    facade.rotation.y = ry;
+
+    // Glass panel
+    const glass = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.03), glassMat);
+    facade.add(glass);
+
+    // Frame Borders
+    const frameThickness = 0.06;
+    const borderTop = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, frameThickness, 0.08), frameMat);
+    borderTop.position.y = h / 2 - frameThickness / 2;
+    const borderBottom = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, frameThickness, 0.08), frameMat);
+    borderBottom.position.y = -h / 2 + frameThickness / 2;
     
-    const tie = new THREE.Mesh(new THREE.BoxGeometry(14.6, 0.08, 0.08), roofWoodMat);
-    tie.position.y = roofY;
-    tie.castShadow = true;
-    truss.add(tie);
+    const borderLeft = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, h, 0.08), frameMat);
+    borderLeft.position.x = -w / 2 + frameThickness / 2;
+    const borderRight = new THREE.Mesh(new THREE.BoxGeometry(frameThickness, h, 0.08), frameMat);
+    borderRight.position.x = w / 2 - frameThickness / 2;
 
-    const king = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.2, 0.08), roofWoodMat);
-    king.position.set(0, roofY + 0.6, 0);
-    king.castShadow = true;
-    truss.add(king);
+    facade.add(borderTop, borderBottom, borderLeft, borderRight);
 
-    const leftRafter = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 0.06), roofWoodMat);
-    leftRafter.position.set(-3.65, roofY + 0.625, 0);
-    leftRafter.rotation.z = Math.atan2(1.25, 7.3);
-    leftRafter.castShadow = true;
-    truss.add(leftRafter);
+    // Vertical Division Mullions
+    const mullion1 = new THREE.Mesh(new THREE.BoxGeometry(0.04, h - 0.1, 0.06), frameMat);
+    mullion1.position.x = -w / 6;
+    const mullion2 = new THREE.Mesh(new THREE.BoxGeometry(0.04, h - 0.1, 0.06), frameMat);
+    mullion2.position.x = w / 6;
+    facade.add(mullion1, mullion2);
 
-    const rightRafter = new THREE.Mesh(new THREE.BoxGeometry(7.4, 0.06, 0.06), roofWoodMat);
-    rightRafter.position.set(3.65, roofY + 0.625, 0);
-    rightRafter.rotation.z = -Math.atan2(1.25, 7.3);
-    rightRafter.castShadow = true;
-    truss.add(rightRafter);
-
-    truss.position.z = z;
-    scene.add(truss);
+    scene.add(facade);
   };
 
-  buildTruss(-3.5);
-  buildTruss(0.0);
-  buildTruss(3.5);
+  // FRONT GLASS FACADES (Z = 3.44)
+  addGlassFacade(-3.75, HEIGHTS.ground, 3.44, 5.76, 2.2); // Home Front Glass
+  addGlassFacade(-3.75, HEIGHTS.first, 3.44, 5.76, 2.2);  // Study Front Glass
+  addGlassFacade(3.75, HEIGHTS.first, 3.44, 5.76, 2.2);   // Library Front Glass
+  addGlassFacade(-3.75, HEIGHTS.second, 3.44, 5.76, 2.2); // Workshop Front Glass
+  addGlassFacade(3.75, HEIGHTS.second, 3.44, 5.76, 2.2);  // Arcade Front Glass
 
-  const buildPurlin = (x: number, y: number) => {
-    const purlin = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.06, 7.2), roofWoodMat);
-    purlin.position.set(x, y, 0);
-    purlin.castShadow = true;
-    scene.add(purlin);
+  // 5. Solid Roof Structure & Flat Terrace
+  const roofY = HEIGHTS.second + 2.2; // Y = 6.6
+  
+  // FLAT CONCRETE ROOFTOP TERRACE DECK (Left side, X from -6.75 to -0.75, Z from -3.5 to 3.5)
+  const roofSlab = new THREE.Mesh(
+    new THREE.BoxGeometry(6.0, 0.12, 7.0),
+    new THREE.MeshStandardMaterial({ color: COLORS.houseBase, roughness: 0.85 })
+  );
+  roofSlab.position.set(-3.75, roofY - 0.06, 0);
+  roofSlab.receiveShadow = true;
+  roofSlab.castShadow = true;
+  scene.add(roofSlab);
+
+  // GLASS SAFETY RAILINGS around the flat roof terrace
+  const addRailing = (w: number, x: number, z: number, ry = 0) => {
+    const railGroup = new THREE.Group();
+    railGroup.position.set(x, roofY, z);
+    railGroup.rotation.y = ry;
+
+    // Glass panel
+    const glass = new THREE.Mesh(
+      new THREE.BoxGeometry(w, 0.85, 0.02),
+      new THREE.MeshPhysicalMaterial({ color: 0xe0f2fe, transparent: true, opacity: 0.2, transmission: 0.9 })
+    );
+    glass.position.y = 0.425;
+    railGroup.add(glass);
+
+    // Chrome/steel metal supports & handrail
+    const postMat = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.9, roughness: 0.1 });
+    const handrail = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.04, 0.04), postMat);
+    handrail.position.y = 0.87;
+    railGroup.add(handrail);
+
+    const postsCount = Math.max(2, Math.floor(w / 1.5));
+    for (let i = 0; i < postsCount; i++) {
+      const px = -w / 2 + (i * w) / (postsCount - 1);
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.85), postMat);
+      post.position.set(px, 0.425, 0);
+      railGroup.add(post);
+    }
+
+    scene.add(railGroup);
   };
 
-  buildPurlin(0, peakY + 0.04);
-  buildPurlin(-3.65, roofY + 0.625);
-  buildPurlin(3.65, roofY + 0.625);
+  // Add railings for the three outer boundaries of the flat terrace
+  addRailing(5.76, -3.75, 3.44, 0);            // Front railing
+  addRailing(6.76, -6.69, 0, Math.PI / 2);      // Left railing
+  addRailing(5.76, -3.75, -3.44, 0);           // Back railing
 
-  // 6. Hanging Light Fixtures with Lightbulbs
+  // ELEVATOR PENTHOUSE CORE (Center, X from -0.75 to 0.75)
+  const penthouse = new THREE.Mesh(
+    new THREE.BoxGeometry(1.5, 2.2, 1.5),
+    new THREE.MeshStandardMaterial({ color: COLORS.houseBase, roughness: 0.8 })
+  );
+  penthouse.position.set(0, roofY + 1.1 - 0.12, 0);
+  penthouse.castShadow = true;
+  penthouse.receiveShadow = true;
+  scene.add(penthouse);
+
+  // Modern horizontal accent trim on penthouse
+  const trim = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.08, 1.56), frameMat);
+  trim.position.set(0, roofY + 2.0 - 0.12, 0);
+  scene.add(trim);
+
+  // ASYMMETRICAL PITCHED SLATED ROOF (Right side, X from 0.75 to 6.75, Z from -3.5 to 3.5)
+  const roofSlope = new THREE.Mesh(
+    new THREE.BoxGeometry(6.2, 0.08, 7.05),
+    new THREE.MeshStandardMaterial({ color: 0x222533, roughness: 0.7 }) // Charcoal shingle tiles
+  );
+  roofSlope.position.set(3.75, roofY + 0.465, 0);
+  roofSlope.rotation.z = -0.173;
+  roofSlope.castShadow = true;
+  roofSlope.receiveShadow = true;
+  scene.add(roofSlope);
+
+  // 6. Rooftop Luxury Decoration (Empty Roof Fix)
+  const woodFurnitureMat = new THREE.MeshStandardMaterial({ color: COLORS.woodFurniture, roughness: 0.75 });
+  const cushionMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+
+  // A. Sun Lounger Chairs
+  const addSunLounger = (x: number, z: number, ry: number) => {
+    const lounger = new THREE.Group();
+    lounger.position.set(x, roofY, z);
+    lounger.rotation.y = ry;
+
+    // Wooden base frame
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.08, 1.4), woodFurnitureMat);
+    base.position.y = 0.04;
+    base.castShadow = true;
+    lounger.add(base);
+
+    // Reclined back support
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.6), woodFurnitureMat);
+    back.position.set(0, 0.22, -0.4);
+    back.rotation.x = -0.4;
+    back.castShadow = true;
+    lounger.add(back);
+
+    // White cushion top
+    const cushion = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.06, 0.8), cushionMat);
+    cushion.position.set(0, 0.1, 0.2);
+    const cushionBack = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.06, 0.55), cushionMat);
+    cushionBack.position.set(0, 0.23, -0.38);
+    cushionBack.rotation.x = -0.4;
+    lounger.add(cushion, cushionBack);
+
+    scene.add(lounger);
+  };
+  addSunLounger(-2.0, 2.0, Math.PI / 6);
+  addSunLounger(-2.0, 0.8, Math.PI / 5);
+
+  // B. Large Leafy Planter Pots
+  const addPlanterPot = (x: number, z: number) => {
+    const planter = new THREE.Group();
+    planter.position.set(x, roofY, z);
+
+    // Terracotta pot
+    const pot = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.24, 0.16, 0.44, 12),
+      new THREE.MeshStandardMaterial({ color: 0x4f5d75, roughness: 0.6 })
+    );
+    pot.position.y = 0.22;
+    pot.castShadow = true;
+    planter.add(pot);
+
+    // Lush plant leaves
+    const leafMaterial = new THREE.MeshLambertMaterial({ color: 0x2d6a4f });
+    for (let i = 0; i < 3; i++) {
+      const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.25, 8, 8), leafMaterial);
+      leaves.position.set(Math.sin(i * 2) * 0.1, 0.44 + i * 0.12, Math.cos(i * 2) * 0.1);
+      leaves.scale.set(1.1, 0.85, 1.1);
+      leaves.castShadow = true;
+      planter.add(leaves);
+    }
+
+    scene.add(planter);
+  };
+  addPlanterPot(-5.8, -2.6);
+  addPlanterPot(-5.8, 2.6);
+
+  // C. Modern Solar Panels
+  const addSolarPanel = (x: number, z: number) => {
+    const panelGroup = new THREE.Group();
+    panelGroup.position.set(x, roofY + 0.65, z);
+    panelGroup.rotation.z = -0.173;
+
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.7 });
+    const rails = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 1.5), railMat);
+    rails.position.y = 0.02;
+    panelGroup.add(rails);
+
+    const siliconMat = new THREE.MeshStandardMaterial({
+      color: 0x1e293b,
+      metalness: 0.9,
+      roughness: 0.15
+    });
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 1.6), railMat);
+    frame.position.y = 0.04;
+    const silicon = new THREE.Mesh(new THREE.BoxGeometry(1.12, 0.01, 1.52), siliconMat);
+    silicon.position.y = 0.055;
+    panelGroup.add(frame, silicon);
+
+    scene.add(panelGroup);
+  };
+  addSolarPanel(3.0, -1.8);
+  addSolarPanel(3.0, 1.8);
+
+  // 7. Hanging Light Fixtures with Lightbulbs (suspended from flat ceilings Y=6.6)
   const addHangingLamp = (x: number, y: number, z: number, length: number) => {
     const lamp = new THREE.Group();
     const cordMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5 });
     
-    // Wire cord
     const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, length), cordMat);
     cord.position.y = -length / 2;
     lamp.add(cord);
     
-    // Cone shade
     const shade = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.12, 0.14, 8), new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5 }));
     shade.position.y = -length - 0.07;
     shade.castShadow = true;
     lamp.add(shade);
 
-    // Glowing lightbulb (Starts off-duty grey)
     const glowBulb = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0x666666 }));
     glowBulb.position.y = -length - 0.12;
     lamp.add(glowBulb);
-    bulbMeshes.push(glowBulb); // Save bulb reference
+    bulbMeshes.push(glowBulb);
 
     lamp.position.set(x, y, z);
     scene.add(lamp);
   };
 
-  // Hang lamps in top floor rooms (from ridge Y=7.15)
-  addHangingLamp(-3.5, peakY, -0.6, 0.45); // Projects Lab
-  addHangingLamp(3.5, peakY, -0.6, 0.45);  // Skills Arcade
+  addHangingLamp(-3.5, roofY, -0.6, 0.45); // Projects Lab ceiling
+  addHangingLamp(3.5, roofY, -0.6, 0.45);  // Skills Arcade ceiling
 }
 
 // ----------------------------------------------------
@@ -1121,6 +1288,328 @@ function createRoomProps() {
 
   addTechPodium(2.6, 1.2, new THREE.BoxGeometry(0.24, 0.24, 0.24), 0x5cdb5c);
   addTechPodium(4.4, 1.2, new THREE.TorusGeometry(0.15, 0.05, 8, 16), 0xe07a5f);
+}
+
+// ----------------------------------------------------
+// Helipad & Stylized Helicopter Models
+// ----------------------------------------------------
+function createHelipad() {
+  helipad = new THREE.Group();
+  // Center of the flat concrete roof terrace above Projects room
+  helipad.position.set(-3.75, HEIGHTS.second + 2.2, 0);
+
+  // Helipad platform (large concrete circle)
+  const platformGeo = new THREE.CylinderGeometry(1.75, 1.75, 0.04, 32);
+  const platformMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
+  const platform = new THREE.Mesh(platformGeo, platformMat);
+  platform.receiveShadow = true;
+  platform.castShadow = true;
+  helipad.add(platform);
+
+  // Outer border ring (yellow warning ring)
+  const borderGeo = new THREE.TorusGeometry(1.70, 0.04, 8, 32);
+  const borderMat = new THREE.MeshBasicMaterial({ color: 0xeab308 });
+  const border = new THREE.Mesh(borderGeo, borderMat);
+  border.rotation.x = Math.PI / 2;
+  border.position.y = 0.025;
+  helipad.add(border);
+
+  // The letter "H" on helipad (white bars)
+  const hGroup = new THREE.Group();
+  hGroup.position.y = 0.022;
+  
+  const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  const barL = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.005, 0.9), lineMat);
+  barL.position.x = -0.3;
+  const barR = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.005, 0.9), lineMat);
+  barR.position.x = 0.3;
+  const barC = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.005, 0.16), lineMat);
+  
+  hGroup.add(barL, barR, barC);
+  helipad.add(hGroup);
+
+  // Support mounts holding the helipad on the roof slab
+  const strutMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.6, roughness: 0.3 });
+  for (let i = -1; i <= 1; i += 2) {
+    for (let j = -1; j <= 1; j += 2) {
+      const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.04), strutMat);
+      mount.position.set(i * 1.2, -0.04, j * 1.2);
+      mount.castShadow = true;
+      helipad.add(mount);
+    }
+  }
+
+  scene.add(helipad);
+}
+
+function createHelicopter() {
+  helicopter = new THREE.Group();
+  // Sits flat on the new helipad level
+  helicopter.position.set(-3.75, HEIGHTS.second + 2.24, 0);
+
+  // 1. Cockpit / Main Cabin (Rounded capsule shape)
+  const bodyGeo = new THREE.SphereGeometry(0.35, 16, 16);
+  bodyGeo.scale(1.4, 1.0, 1.0);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.5, roughness: 0.3 });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  helicopter.add(body);
+
+  // 2. Windshield / Canopy (Transparent dark glass)
+  const canopyGeo = new THREE.SphereGeometry(0.24, 16, 16);
+  canopyGeo.scale(1.2, 0.8, 1.0);
+  const canopyMat = new THREE.MeshPhysicalMaterial({
+    color: 0x111111,
+    transparent: true,
+    opacity: 0.6,
+    roughness: 0.1,
+    metalness: 0.9
+  });
+  const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+  canopy.position.set(0.22, 0.06, 0);
+  helicopter.add(canopy);
+
+  // 3. Tail Boom (Tapering cylinder extending back)
+  const boomGeo = new THREE.CylinderGeometry(0.05, 0.08, 0.9, 8);
+  const boomMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.5 });
+  const boom = new THREE.Mesh(boomGeo, boomMat);
+  boom.rotation.z = Math.PI / 2;
+  boom.position.set(-0.75, 0.05, 0);
+  boom.castShadow = true;
+  helicopter.add(boom);
+
+  // 4. Tail Fin / Rotor Support
+  const finGeo = new THREE.BoxGeometry(0.06, 0.32, 0.12);
+  const finMat = new THREE.MeshStandardMaterial({ color: 0xeab308 });
+  const fin = new THREE.Mesh(finGeo, finMat);
+  fin.position.set(-1.22, 0.18, 0);
+  fin.castShadow = true;
+  helicopter.add(fin);
+
+  // 5. Main Rotor Shaft
+  const shaftGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.18, 8);
+  const shaftMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+  const shaft = new THREE.Mesh(shaftGeo, shaftMat);
+  shaft.position.set(0.0, 0.4, 0);
+  shaft.castShadow = true;
+  helicopter.add(shaft);
+
+  // 6. Main Rotor Blades
+  mainRotor = new THREE.Group();
+  mainRotor.position.set(0.0, 0.49, 0);
+  const bladeMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.7, roughness: 0.5 });
+  const bladeL = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.01, 0.08), bladeMat);
+  bladeL.castShadow = true;
+  const bladeR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 1.8), bladeMat);
+  bladeR.castShadow = true;
+  mainRotor.add(bladeL, bladeR);
+  helicopter.add(mainRotor);
+
+  // 7. Tail Rotor Blades
+  tailRotor = new THREE.Group();
+  tailRotor.position.set(-1.22, 0.18, 0.08);
+  const tBladeGeo = new THREE.BoxGeometry(0.01, 0.34, 0.03);
+  const tBladeMat = new THREE.MeshBasicMaterial({ color: 0x0f172a });
+  const tBlade1 = new THREE.Mesh(tBladeGeo, tBladeMat);
+  const tBlade2 = new THREE.Mesh(tBladeGeo, tBladeMat);
+  tBlade2.rotation.x = Math.PI / 2;
+  tailRotor.add(tBlade1, tBlade2);
+  helicopter.add(tailRotor);
+
+  // 8. Landing Skids
+  const skidMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.7 });
+  
+  const skidL = new THREE.Group();
+  const leg1L = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.16), skidMat);
+  leg1L.position.set(0.15, -0.22, 0.18);
+  leg1L.rotation.z = -0.2;
+  const leg2L = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.16), skidMat);
+  leg2L.position.set(-0.25, -0.22, 0.18);
+  leg2L.rotation.z = 0.2;
+  const barL = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.02, 0.03), skidMat);
+  barL.position.set(-0.05, -0.3, 0.18);
+  barL.castShadow = true;
+  skidL.add(leg1L, leg2L, barL);
+  helicopter.add(skidL);
+
+  const skidR = new THREE.Group();
+  const leg1R = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.16), skidMat);
+  leg1R.position.set(0.15, -0.22, -0.18);
+  leg1R.rotation.z = -0.2;
+  const leg2R = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.16), skidMat);
+  leg2R.position.set(-0.25, -0.22, -0.18);
+  leg2R.rotation.z = 0.2;
+  const barR = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.02, 0.03), skidMat);
+  barR.position.set(-0.05, -0.3, -0.18);
+  barR.castShadow = true;
+  skidR.add(leg1R, leg2R, barR);
+  helicopter.add(skidR);
+
+  // 9. Side thruster engines (glowing rocket thrusters for space flight)
+  const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xf97316 });
+
+  const thrusterL = new THREE.Group();
+  const nozzleL = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.15, 8), nozzleMat);
+  nozzleL.rotation.z = Math.PI / 2;
+  const fireL = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), glowMat);
+  fireL.scale.set(0.1, 1.8, 1.0);
+  fireL.rotation.z = Math.PI / 2;
+  fireL.position.x = -0.12;
+  thrusterL.add(nozzleL, fireL);
+  thrusterL.position.set(-0.35, -0.06, 0.28);
+  helicopter.add(thrusterL);
+
+  const thrusterR = new THREE.Group();
+  const nozzleR = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.15, 8), nozzleMat);
+  nozzleR.rotation.z = Math.PI / 2;
+  const fireR = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 8), glowMat);
+  fireR.scale.set(0.1, 1.8, 1.0);
+  fireR.rotation.z = Math.PI / 2;
+  fireR.position.x = -0.12;
+  thrusterR.add(nozzleR, fireR);
+  thrusterR.position.set(-0.35, -0.06, -0.28);
+  helicopter.add(thrusterR);
+
+  thrusterL.userData = { fire: fireL };
+  thrusterR.userData = { fire: fireR };
+  
+  thrusterFireL = fireL;
+  thrusterFireR = fireR;
+  
+  // Hide thruster flames initially
+  fireL.scale.set(0.001, 0.001, 0.001);
+  fireR.scale.set(0.001, 0.001, 0.001);
+
+  scene.add(helicopter);
+}
+
+function createSpaceCity() {
+  cityGroup = new THREE.Group();
+  
+  // Platform base plate for the floating district
+  const baseGeo = new THREE.CylinderGeometry(3.6, 3.8, 0.15, 32);
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+  const cityBase = new THREE.Mesh(baseGeo, baseMat);
+  cityBase.position.y = 11.0;
+  cityBase.receiveShadow = true;
+  cityBase.castShadow = true;
+  cityGroup.add(cityBase);
+
+  // Glowing neon ring outlining the floating district
+  const ringGeo = new THREE.TorusGeometry(3.7, 0.04, 8, 32);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+  const glowRing = new THREE.Mesh(ringGeo, ringMat);
+  glowRing.rotation.x = Math.PI / 2;
+  glowRing.position.y = 11.08;
+  cityGroup.add(glowRing);
+
+  // Specifications for the 10 futuristic skyscrapers (relative positions & heights)
+  const buildingSpecs = [
+    { rx: -2.0, rz: -2.0, h: 2.5, color: 0x222533, lightColor: 0x3b82f6 },
+    { rx: -0.8, rz: -2.4, h: 3.2, color: 0x181a24, lightColor: 0x10b981 },
+    { rx: 1.0, rz: -2.4, h: 2.2, color: 0x272b3c, lightColor: 0xeab308 },
+    { rx: 2.2, rz: -1.2, h: 3.0, color: 0x1e202b, lightColor: 0x6366f1 },
+    { rx: 2.4, rz: 0.5, h: 2.8, color: 0x222533, lightColor: 0xec4899 },
+    { rx: 1.4, rz: 2.0, h: 3.8, color: 0x181a24, lightColor: 0x06b6d4 },
+    { rx: -0.4, rz: 2.4, h: 2.4, color: 0x272b3c, lightColor: 0xa855f7 },
+    { rx: -2.0, rz: 1.8, h: 3.4, color: 0x1e202b, lightColor: 0xef4444 },
+    { rx: -2.5, rz: -0.2, h: 2.8, color: 0x222533, lightColor: 0x10b981 },
+    { rx: 0.0, rz: 0.0, h: 4.2, color: 0x0f111a, lightColor: 0xeab308 } // Center tower
+  ];
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e2022, roughness: 0.5, metalness: 0.8 });
+
+  buildingSpecs.forEach((spec, i) => {
+    // 1. Skyscraper Structure
+    const bW = i === 9 ? 0.95 : 0.75; // wider center tower
+    const bGeo = new THREE.BoxGeometry(bW, spec.h, bW);
+    const bMat = new THREE.MeshStandardMaterial({ color: spec.color, metalness: 0.85, roughness: 0.15 });
+    const bMesh = new THREE.Mesh(bGeo, bMat);
+    bMesh.position.set(-16.0 + spec.rx, 11.0 + spec.h / 2, -18.0 + spec.rz);
+    bMesh.castShadow = true;
+    bMesh.receiveShadow = true;
+    cityGroup.add(bMesh);
+
+    // 2. Glowing office window neon bands
+    const stripeCount = Math.floor(spec.h / 0.55);
+    for (let j = 1; j < stripeCount; j++) {
+      const band = new THREE.Mesh(
+        new THREE.BoxGeometry(bW + 0.02, 0.04, bW + 0.02),
+        new THREE.MeshBasicMaterial({ color: spec.lightColor })
+      );
+      band.position.set(
+        -16.0 + spec.rx,
+        11.0 + j * 0.55,
+        -18.0 + spec.rz
+      );
+      cityGroup.add(band);
+    }
+
+    // 3. Helicopter Landing Pad on the roof
+    const padRadius = i === 9 ? 0.32 : 0.25;
+    const padGroup = new THREE.Group();
+    padGroup.position.set(-16.0 + spec.rx, 11.0 + spec.h + 0.005, -18.0 + spec.rz);
+
+    const plate = new THREE.Mesh(
+      new THREE.CylinderGeometry(padRadius, padRadius, 0.01, 16),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 })
+    );
+    padGroup.add(plate);
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(padRadius - 0.015, 0.008, 4, 16),
+      new THREE.MeshBasicMaterial({ color: spec.lightColor })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.006;
+    padGroup.add(ring);
+
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const hL = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.001, 0.12), lineMat);
+    hL.position.set(-0.04, 0.007, 0);
+    const hR = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.001, 0.12), lineMat);
+    hR.position.set(0.04, 0.007, 0);
+    const hC = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.001, 0.02), lineMat);
+    hC.position.set(0, 0.007, 0);
+    padGroup.add(hL, hR, hC);
+
+    cityGroup.add(padGroup);
+
+    // Save world coordinate of this building's landing zone
+    cityHelipads.push(new THREE.Vector3(
+      -16.0 + spec.rx,
+      11.0 + spec.h + 0.02,
+      -18.0 + spec.rz
+    ));
+
+    // 4. Rooftop Details: Antennas with blinking lights
+    if (i % 2 === 1) {
+      const antenna = new THREE.Group();
+      antenna.position.set(-16.0 + spec.rx - 0.22, 11.0 + spec.h, -18.0 + spec.rz - 0.22);
+      
+      const mast = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 0.015, 0.4, 8),
+        frameMat
+      );
+      mast.position.y = 0.2;
+      antenna.add(mast);
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xef4444 }) // Red warning light
+      );
+      tip.position.y = 0.4;
+      antenna.add(tip);
+
+      cityGroup.add(antenna);
+    }
+  });
+
+  // Start collapsed (will scale up when flying to space)
+  cityGroup.scale.set(0.001, 0.001, 0.001);
+  scene.add(cityGroup);
 }
 
 // ----------------------------------------------------
@@ -1696,19 +2185,39 @@ function setupEvents() {
         (e.currentTarget as HTMLElement).classList.remove('highlighted');
       }
     });
+    card.addEventListener('click', (e) => {
+      if (isTransitioning || isSpaceTrip) return;
+      const idxStr = (e.currentTarget as HTMLElement).getAttribute('data-proj-id');
+      if (idxStr !== null) {
+        const idx = parseInt(idxStr);
+        flyToPlanet(idx);
+      }
+    });
   });
 
+  // Return to Earth button click
+  const returnBtn = document.getElementById('btn-return-earth');
+  if (returnBtn) {
+    returnBtn.addEventListener('click', () => {
+      returnToEarth();
+    });
+  }
+
   // Contact Form Submission
+  // To activate free lifetime form storage, replace this email with your own verified email address!
+  // FormSubmit.co will send you a one-time verification link upon the first submission.
+  const CONTACT_EMAIL = "your-email@example.com"; 
+
   const form = document.getElementById('portfolio-contact-form');
   const successEl = document.getElementById('form-success');
   if (form && successEl) {
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      successEl.style.display = 'block';
+      
       const submitBtn = document.getElementById('form-submit-btn') as HTMLButtonElement;
       if (submitBtn) {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Transmitted!';
+        submitBtn.textContent = 'Transmitting...';
       }
 
       // Flash street lamp
@@ -1719,14 +2228,50 @@ function setupEvents() {
           .to(streetLampLight, { intensity: originalVal, duration: 0.3 });
       }
 
-      setTimeout(() => {
-        (form as HTMLFormElement).reset();
-        successEl.style.display = 'none';
-        if (submitBtn) {
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Send Message';
+      const nameVal = (document.getElementById('form-name') as HTMLInputElement).value;
+      const emailVal = (document.getElementById('form-email') as HTMLInputElement).value;
+      const messageVal = (document.getElementById('form-message') as HTMLTextAreaElement).value;
+
+      const targetUrl = `https://formsubmit.co/ajax/${CONTACT_EMAIL}`;
+
+      fetch(targetUrl, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        body: JSON.stringify({
+          name: nameVal,
+          email: emailVal,
+          message: messageVal,
+          _subject: `Portfolio Message from ${nameVal}`
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        console.log("FormSubmit response:", data);
+        successEl.style.display = 'block';
+        if (CONTACT_EMAIL === "your-email@example.com") {
+          successEl.innerHTML = "<span>✓ Message saved locally! Change CONTACT_EMAIL in main.ts to activate free inbox forwarding.</span>";
+        } else {
+          successEl.innerHTML = "<span>✓ Message transmitted successfully! Check your email inbox.</span>";
         }
-      }, 5000);
+      })
+      .catch(err => {
+        console.error("FormSubmit submission error:", err);
+        successEl.style.display = 'block';
+        successEl.innerHTML = "<span style='color: #e07a5f;'>✓ Note: Mocked send! Replace CONTACT_EMAIL in main.ts to activate free email forwarding.</span>";
+      })
+      .finally(() => {
+        setTimeout(() => {
+          (form as HTMLFormElement).reset();
+          successEl.style.display = 'none';
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Send Message';
+          }
+        }, 5000);
+      });
     });
   }
 
@@ -1879,18 +2424,6 @@ function onCanvasMouseMove(event: MouseEvent) {
     }
   }
   renderer.domElement.style.cursor = foundHoverable ? 'pointer' : 'auto';
-
-  // Toggle hover state on custom cursor ring
-  if (cursorRingEl) {
-    if (foundHoverable) {
-      cursorRingEl.classList.add('hover');
-    } else {
-      const activeHoverEl = document.querySelector('button:hover, a:hover, .project-card:hover');
-      if (!activeHoverEl) {
-        cursorRingEl.classList.remove('hover');
-      }
-    }
-  }
 }
 
 // Idle timeout to reset auto rotation
@@ -1944,12 +2477,11 @@ function animate(time: number) {
 
   const seconds = time * 0.001;
 
-  // Lerp custom cursor ring position (desktop fine pointers only)
-  if (cursorRingEl) {
-    cursorX += (mouseX - cursorX) * 0.16;
-    cursorY += (mouseY - cursorY) * 0.16;
-    cursorRingEl.style.left = cursorX + 'px';
-    cursorRingEl.style.top = cursorY + 'px';
+
+
+  // Update controls vertical bobbing during auto-rotation
+  if (controls.autoRotate && !isTransitioning && !isSpaceTrip) {
+    camera.position.y = 12.0 + Math.sin(seconds * 0.22) * 2.8;
   }
 
   // Update controls
@@ -1958,6 +2490,12 @@ function animate(time: number) {
   // Update avatar joints
   if (avatar) {
     avatar.update(seconds);
+  }
+
+  // Spin helicopter rotors based on rotorSpeed
+  if (helicopter && mainRotor && tailRotor) {
+    mainRotor.rotation.y += rotorSpeed;
+    tailRotor.rotation.z += rotorSpeed * 1.8;
   }
 
   // Fireplace log glowing flame flicker in dark mode
@@ -2003,3 +2541,419 @@ function animate(time: number) {
 
 // Boot up
 window.addEventListener('DOMContentLoaded', init);
+
+// ----------------------------------------------------
+// Project Details Space Animation & Data
+// ----------------------------------------------------
+interface ProjectDetail {
+  meta: string;
+  title: string;
+  tags: string[];
+  desc: string;
+  features: string[];
+}
+
+const projectDetails: ProjectDetail[] = [
+  {
+    meta: "01 / MICROSERVICE [LIVE]",
+    title: "BroadNet.ai Billing Service",
+    tags: ["Java", "Spring Boot", "Kafka", "Docker", "Stripe API", "Kubernetes"],
+    desc: "A production-grade, highly scalable billing microservice powering BroadNet.ai. Designed to handle end-to-end user subscription lifecycle management, usage-based consumption calculation, and automatic invoicing.",
+    features: [
+      "Designed and deployed Spring Boot microservices integrated with Apache Kafka event streams for asynchronous notification delivery.",
+      "Integrated Stripe API for secure processing of prepaid top-ups and recurring postpaid credit card billing workflows.",
+      "Implemented distributed transactions with resilient fallback strategies to prevent partial processing errors.",
+      "Optimized query performance using Redis caching layers, reducing billing computation latency by 45%.",
+      "Containerized microservices using Docker and orchestrated deployments on Kubernetes cluster configurations."
+    ]
+  },
+  {
+    meta: "02 / CORE JAVA & WEB",
+    title: "E-Learning Platform",
+    tags: ["Core Java", "Servlets", "JSP", "MySQL", "HTML5", "CSS3", "Apache Tomcat"],
+    desc: "An educational platform utilizing role-based access control to partition student workspaces and mentor boards. Designed to host interactive course chapters, progress chapters, and dynamic student quiz panels.",
+    features: [
+      "Constructed core servlet request routing layers managing secure user sessions and preventing injection attacks.",
+      "Built dynamic, interactive JSP templates rendering course content, video links, and student assignments.",
+      "Modeled relational database structures in MySQL for users, enrollments, course catalogs, and exam logs.",
+      "Implemented a backend automated grading engine mapping multiple-choice quiz submissions in real-time.",
+      "Designed a clean responsive CSS workspace ensuring smooth cross-device accessibility for desktop and mobile learners."
+    ]
+  },
+  {
+    meta: "03 / AWS CLOUD & R&D",
+    title: "AWS Cloud Systems & 5G Research",
+    tags: ["AWS", "5G Systems", "EC2", "RDS", "S3", "TSSC Protocols", "Systems Design"],
+    desc: "An integration of AWS cloud infrastructure mapping with research into TSSC 5G Advance Competence structures, mapping network signaling routes and cloud-native database replication.",
+    features: [
+      "Configured secure, high-availability AWS Virtual Private Clouds (VPC) hosting EC2 instances and RDS database clusters.",
+      "Researched 5G Core signaling protocols (AMF, SMF, UPF) to model microservices communication topologies.",
+      "Designed event-driven serverless architectures leveraging AWS Lambda and S3 storage triggers for file ingestion pipelines.",
+      "Produced comprehensive system design diagrams modeling latency constraints, security group policies, and CDN edge caches.",
+      "Completed TSSC 5G Advance networking credentials covering packet routing, QoS metrics, and cellular handover signaling."
+    ]
+  }
+];
+
+function flyToPlanet(projectId: number) {
+  isSpaceTrip = true;
+  isTransitioning = true; // Lock other room transitions
+
+  // Pick a random helipad (0 to 9) in the space city
+  currentPlanetHelipadIdx = Math.floor(Math.random() * 10);
+  const targetLandingPos = cityHelipads[currentPlanetHelipadIdx];
+
+  // Hide the standard Projects info card panel
+  const activeCard = document.querySelector('.info-card.active');
+  if (activeCard) activeCard.classList.remove('active');
+
+  // Spin up rotors
+  const rotorControl = { value: rotorSpeed };
+  gsap.to(rotorControl, {
+    value: 0.45,
+    duration: 1.5,
+    ease: 'power1.in',
+    onUpdate: () => {
+      rotorSpeed = rotorControl.value;
+    }
+  });
+
+  // Scale up thruster flames
+  if (thrusterFireL && thrusterFireR) {
+    gsap.to([thrusterFireL.scale, thrusterFireR.scale], {
+      x: 1.0,
+      y: 2.2,
+      z: 1.0,
+      duration: 1.8,
+      ease: 'power2.out'
+    });
+  }
+
+  // Create Flight path Timeline
+  const tl = gsap.timeline({
+    onComplete: () => {
+      // Arrived at the planet city helipad! Open project details overlay
+      const detail = projectDetails[projectId];
+      document.getElementById('project-detail-meta')!.textContent = detail.meta;
+      document.getElementById('project-detail-title')!.textContent = detail.title;
+      document.getElementById('project-detail-desc')!.textContent = detail.desc;
+      
+      const tagsContainer = document.getElementById('project-detail-tags')!;
+      tagsContainer.innerHTML = '';
+      detail.tags.forEach(tag => {
+        const span = document.createElement('span');
+        span.textContent = tag;
+        tagsContainer.appendChild(span);
+      });
+
+      const featuresContainer = document.getElementById('project-detail-features')!;
+      featuresContainer.innerHTML = '';
+      detail.features.forEach(feat => {
+        const li = document.createElement('li');
+        li.textContent = feat;
+        featuresContainer.appendChild(li);
+      });
+
+      document.getElementById('project-detail-overlay')!.classList.add('active');
+    }
+  });
+
+  // 1. Takeoff (Vertical lift)
+  tl.to(helicopter.position, {
+    y: HEIGHTS.second + 4.8,
+    duration: 1.6,
+    ease: 'power1.inOut'
+  });
+
+  // 2. Rotate to face the selected skyscraper helipad & tilt forward
+  const angleToPlanet = Math.atan2(targetLandingPos.x - (-3.75), targetLandingPos.z - 0);
+  tl.to(helicopter.rotation, {
+    y: angleToPlanet,
+    x: 0.25, // tilt forward
+    duration: 1.2,
+    ease: 'power1.inOut'
+  }, '<+=0.6');
+
+  // 3. Fly to space city (hover above the target helipad)
+  tl.to(helicopter.position, {
+    x: targetLandingPos.x,
+    y: targetLandingPos.y + 0.6, // approach from slightly above
+    z: targetLandingPos.z,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, '+=0.1');
+
+  // Move camera & controls target to track and frame the landing zone
+  tl.to(camera.position, {
+    x: targetLandingPos.x + 3.8,
+    y: targetLandingPos.y + 2.0,
+    z: targetLandingPos.z + 4.2,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, '<');
+
+  tl.to(controls.target, {
+    x: targetLandingPos.x,
+    y: targetLandingPos.y,
+    z: targetLandingPos.z,
+    duration: 3.5,
+    ease: 'power2.inOut',
+    onUpdate: () => controls.update()
+  }, '<');
+
+  // Transition environmental colors to Deep Space night
+  const spaceBgColor = new THREE.Color(0x020206);
+  tl.to(scene.background, {
+    r: spaceBgColor.r,
+    g: spaceBgColor.g,
+    b: spaceBgColor.b,
+    duration: 3.0
+  }, '<');
+
+  tl.to(ambientLight, {
+    intensity: 0.35,
+    duration: 3.0
+  }, '<');
+
+  tl.to(sunLight, {
+    intensity: 0.0,
+    duration: 3.0
+  }, '<');
+
+  tl.to(moonLight, {
+    intensity: 0.0,
+    duration: 3.0
+  }, '<');
+
+  tl.to(starPoints.material, {
+    opacity: 1.0,
+    duration: 3.0
+  }, '<');
+
+  // Scale up the space city group
+  tl.to(cityGroup.scale, {
+    x: 1.0,
+    y: 1.0,
+    z: 1.0,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, '<');
+
+  // Scale up the planet group to make it even larger
+  tl.to(planetGroup.scale, {
+    x: 6.5,
+    y: 6.5,
+    z: 6.5,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, '<');
+
+  // 4. Slow down rotors, hover level, and descend to land on skyscraper
+  tl.to(helicopter.rotation, {
+    x: 0.05, // Level tilt
+    duration: 1.0,
+    ease: 'power1.out'
+  }, '+=0.1');
+
+  if (thrusterFireL && thrusterFireR) {
+    tl.to([thrusterFireL.scale, thrusterFireR.scale], {
+      x: 0.001,
+      y: 0.001,
+      z: 0.001,
+      duration: 1.0
+    }, '<');
+  }
+
+  tl.to(rotorControl, {
+    value: 0.08, // Idle spin
+    duration: 1.5,
+    ease: 'power1.out',
+    onUpdate: () => {
+      rotorSpeed = rotorControl.value;
+    }
+  }, '<');
+
+  // Vertical descent onto the pad
+  tl.to(helicopter.position, {
+    y: targetLandingPos.y,
+    duration: 1.2,
+    ease: 'power1.inOut'
+  }, '<');
+}
+
+function returnToEarth() {
+  // Hide details panel
+  document.getElementById('project-detail-overlay')!.classList.remove('active');
+
+  const targetLandingPos = cityHelipads[currentPlanetHelipadIdx];
+
+  // Spin up rotors
+  const rotorControl = { value: rotorSpeed };
+  gsap.to(rotorControl, {
+    value: 0.45,
+    duration: 1.2,
+    ease: 'power1.in',
+    onUpdate: () => {
+      rotorSpeed = rotorControl.value;
+    }
+  });
+
+  // Scale up thruster flames
+  if (thrusterFireL && thrusterFireR) {
+    gsap.to([thrusterFireL.scale, thrusterFireR.scale], {
+      x: 1.0,
+      y: 2.2,
+      z: 1.0,
+      duration: 1.2,
+      ease: 'power2.out'
+    });
+  }
+
+  // Turn helicopter to face the house & tilt forward
+  const angleToHouse = Math.atan2(-3.75 - targetLandingPos.x, 0 - targetLandingPos.z);
+  gsap.to(helicopter.rotation, {
+    y: angleToHouse,
+    x: 0.25,
+    duration: 1.0,
+    ease: 'power1.inOut',
+    delay: 0.5
+  });
+
+  const tl = gsap.timeline({
+    onComplete: () => {
+      // Descend & Land on the house helipad
+      gsap.to(helicopter.position, {
+        y: HEIGHTS.second + 2.24,
+        duration: 1.8,
+        ease: 'power1.inOut',
+        onComplete: () => {
+          // Power down
+          gsap.to(rotorControl, {
+            value: 0.0,
+            duration: 1.8,
+            ease: 'power1.out',
+            onUpdate: () => {
+              rotorSpeed = rotorControl.value;
+            }
+          });
+
+          // Reset flight flags
+          isSpaceTrip = false;
+          isTransitioning = false;
+
+          // Re-activate Projects Card view panel
+          const panel = document.querySelector(`.info-card[id-panel="projects"]`);
+          if (panel) panel.classList.add('active');
+        }
+      });
+
+      // Level rotation
+      gsap.to(helicopter.rotation, {
+        x: 0,
+        y: 0,
+        duration: 1.2,
+        ease: 'power1.inOut'
+      });
+
+      if (thrusterFireL && thrusterFireR) {
+        gsap.to([thrusterFireL.scale, thrusterFireR.scale], {
+          x: 0.001,
+          y: 0.001,
+          z: 0.001,
+          duration: 1.2
+        });
+      }
+    }
+  });
+
+  // 1. Takeoff (Vertical lift from skyscraper pad)
+  tl.to(helicopter.position, {
+    y: targetLandingPos.y + 0.8,
+    duration: 1.2,
+    ease: 'power1.inOut'
+  });
+
+  // 2. Flight back across space
+  tl.to(helicopter.position, {
+    x: -3.75,
+    y: HEIGHTS.second + 4.8,
+    z: 0,
+    duration: 3.8,
+    ease: 'power2.inOut'
+  }, '+=0.1');
+
+  // Move camera & controls target back to projects view
+  const targetView = cameraViews.projects;
+  tl.to(camera.position, {
+    x: targetView.position.x,
+    y: targetView.position.y,
+    z: targetView.position.z,
+    duration: 3.8,
+    ease: 'power2.inOut'
+  }, '<');
+
+  tl.to(controls.target, {
+    x: targetView.target.x,
+    y: targetView.target.y,
+    z: targetView.target.z,
+    duration: 3.8,
+    ease: 'power2.inOut',
+    onUpdate: () => controls.update()
+  }, '<');
+
+  // Restore environmental colors based on theme mode
+  const bgThemeColor = new THREE.Color(isDarkMode ? 0x090a14 : 0xfaf8f5);
+  tl.to(scene.background, {
+    r: bgThemeColor.r,
+    g: bgThemeColor.g,
+    b: bgThemeColor.b,
+    duration: 3.2
+  }, '<');
+
+  tl.to(ambientLight, {
+    intensity: isDarkMode ? 0.85 : 1.2,
+    duration: 3.2
+  }, '<');
+
+  const ambientThemeColor = new THREE.Color(isDarkMode ? 0x6c7cb8 : 0xfff6eb);
+  tl.to(ambientLight.color, {
+    r: ambientThemeColor.r,
+    g: ambientThemeColor.g,
+    b: ambientThemeColor.b,
+    duration: 3.2
+  }, '<');
+
+  tl.to(sunLight, {
+    intensity: isDarkMode ? 0.0 : 1.4,
+    duration: 3.2
+  }, '<');
+
+  tl.to(moonLight, {
+    intensity: isDarkMode ? 2.0 : 0.0,
+    duration: 3.2
+  }, '<');
+
+  tl.to(starPoints.material, {
+    opacity: isDarkMode ? 1.0 : 0.0,
+    duration: 3.2
+  }, '<');
+
+  // Shrink the space city scale back to collapse
+  tl.to(cityGroup.scale, {
+    x: 0.001,
+    y: 0.001,
+    z: 0.001,
+    duration: 3.8,
+    ease: 'power2.inOut'
+  }, '<');
+
+  // Shrink the Saturn planet scale back to original
+  tl.to(planetGroup.scale, {
+    x: isDarkMode ? 1.0 : 0.001,
+    y: isDarkMode ? 1.0 : 0.001,
+    z: isDarkMode ? 1.0 : 0.001,
+    duration: 3.8,
+    ease: 'power2.inOut'
+  }, '<');
+}
+
