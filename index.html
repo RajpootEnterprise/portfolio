@@ -260,6 +260,38 @@
       </footer>
     </div>
 
+    <!-- Custom cursor elements (desktop only) -->
+    <div class="custom-cursor-dot" id="cursor-dot"></div>
+    <div class="custom-cursor-ring" id="cursor-ring"></div>
+
+    <!-- Interactive House Controller Widget -->
+    <div class="control-widget" id="control-widget">
+      <button class="widget-toggle-btn" id="widget-toggle-btn" title="Toggle House Controller">🎛</button>
+      <div class="widget-panel" id="widget-panel">
+        <div class="widget-header">
+          <h4>✦ House Controller</h4>
+        </div>
+        <div class="widget-section">
+          <span class="section-label">Camera Controls</span>
+          <div class="widget-row">
+            <button class="widget-btn" id="btn-reset-view">Overview</button>
+            <button class="widget-btn" id="btn-toggle-spin">Spin: On</button>
+          </div>
+        </div>
+        <div class="widget-section">
+          <span class="section-label">Go to Room / Floor</span>
+          <div class="floor-grid">
+            <button class="widget-btn-room" data-room="projects" title="Floor 2 Left">Workshop</button>
+            <button class="widget-btn-room" data-room="skills" title="Floor 2 Right">Arcade</button>
+            <button class="widget-btn-room" data-room="about" title="Floor 1 Left">Study</button>
+            <button class="widget-btn-room" data-room="timeline" title="Floor 1 Right">Library</button>
+            <button class="widget-btn-room" data-room="home" title="Ground Left">Lobby</button>
+            <button class="widget-btn-room" data-room="contact" title="Ground Right">Garden</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Main JS entrypoint -->
     <script type="module" src="/src/main.ts"></script>
   </body>
