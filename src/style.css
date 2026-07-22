@@ -847,3 +847,216 @@ body.dark-theme .success-message {
     flex-direction: row;
   }
 }
+
+/* Hide default cursor on desktop for fine pointers */
+@media (min-width: 769px) and (pointer: fine) {
+  body, html, a, button, .btn, .nav-btn, .project-card, .theme-toggle, .widget-toggle-btn, .widget-btn, .widget-btn-room, canvas {
+    cursor: none !important;
+  }
+}
+
+/* Custom animated cursors */
+.custom-cursor-dot {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  background-color: var(--text-highlight);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 10000;
+  transform: translate(-50%, -50%);
+  display: none;
+}
+
+.custom-cursor-ring {
+  position: fixed;
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--text-highlight);
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  transform: translate(-50%, -50%);
+  transition: width 0.22s cubic-bezier(0.25, 1, 0.5, 1), 
+              height 0.22s cubic-bezier(0.25, 1, 0.5, 1), 
+              background-color 0.22s ease, 
+              border-color 0.22s ease;
+  display: none;
+}
+
+.custom-cursor-ring.hover {
+  width: 48px;
+  height: 48px;
+  background-color: rgba(224, 122, 95, 0.12);
+  border-color: var(--text-highlight);
+}
+
+@media (min-width: 769px) and (pointer: fine) {
+  .custom-cursor-dot, .custom-cursor-ring {
+    display: block;
+  }
+}
+
+/* WebGL Canvas Touch Action Optimization */
+#canvas-container canvas {
+  touch-action: none !important;
+}
+
+/* House Controller Widget */
+.control-widget {
+  position: fixed;
+  right: 30px;
+  top: 100px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  pointer-events: none;
+}
+
+.widget-toggle-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.3s ease;
+  pointer-events: all;
+}
+
+.widget-toggle-btn:hover {
+  transform: scale(1.08) rotate(15deg);
+  background: rgba(255, 255, 255, 0.95);
+}
+body.dark-theme .widget-toggle-btn:hover {
+  background: rgba(30, 30, 35, 0.95);
+}
+
+.widget-panel {
+  margin-top: 10px;
+  width: 260px;
+  background: var(--card-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transform: translateX(320px);
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
+}
+
+.control-widget.open .widget-panel {
+  transform: translateX(0);
+  opacity: 1;
+  pointer-events: all;
+}
+
+.widget-header h4 {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--text-highlight);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.widget-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid rgba(61, 64, 91, 0.08);
+  padding-top: 8px;
+}
+body.dark-theme .widget-section {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+.section-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  opacity: 0.5;
+  letter-spacing: 0.5px;
+}
+
+.widget-row {
+  display: flex;
+  gap: 8px;
+}
+
+.widget-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: rgba(61, 64, 91, 0.05);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+body.dark-theme .widget-btn {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.widget-btn:hover {
+  border-color: var(--text-highlight);
+  background: var(--text-primary);
+  color: var(--bg-canvas);
+}
+
+.floor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.widget-btn-room {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--card-border);
+  background: rgba(61, 64, 91, 0.05);
+  color: var(--text-primary);
+  font-family: var(--font-ui);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+body.dark-theme .widget-btn-room {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.widget-btn-room:hover {
+  border-color: var(--text-highlight);
+  background: var(--text-primary);
+  color: var(--bg-canvas);
+}
+
+@media (max-width: 768px) {
+  .control-widget {
+    right: 16px;
+    top: 136px;
+  }
+  .widget-panel {
+    width: 220px;
+  }
+}
