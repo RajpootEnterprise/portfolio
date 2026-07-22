@@ -191,7 +191,8 @@ function init() {
   scene.background = new THREE.Color(0xfaf8f5);
 
   // Camera - INITIAL START ZOOMED OUT (Framing the entire 3-story house)
-  camera = new THREE.PerspectiveCamera(42, window.innerWidth / window.innerHeight, 0.1, 120);
+  const startFov = (window.innerWidth / window.innerHeight) < 1.0 ? 56 : 42;
+  camera = new THREE.PerspectiveCamera(startFov, window.innerWidth / window.innerHeight, 0.1, 120);
   camera.position.set(-16.5, 12.0, 19.5); // Zoomed out view
 
   // Renderer
@@ -1268,6 +1269,10 @@ function navigateToRoom(targetRoomName: string) {
   if (isTransitioning || targetRoomName === currentRoom) return;
   isTransitioning = true;
 
+  // Mobile portrait layout Y offset: centers target room in the top visible half of the screen
+  const isMobile = window.innerWidth / window.innerHeight < 1.0;
+  const yOffset = isMobile ? 0.75 : 0.0;
+
   // Stop auto rotation immediately when user navigates
   controls.autoRotate = false;
   clearTimeout(idleTimer);
@@ -1350,7 +1355,7 @@ function navigateToRoom(targetRoomName: string) {
     const targetView = cameraViews[targetRoomName];
     tl.to(camera.position, {
       x: targetView.position.x,
-      y: targetView.position.y,
+      y: targetView.position.y + yOffset,
       z: targetView.position.z,
       duration: 0.8,
       ease: 'power2.inOut'
@@ -1358,7 +1363,7 @@ function navigateToRoom(targetRoomName: string) {
 
     tl.to(controls.target, {
       x: targetView.target.x,
-      y: targetView.target.y,
+      y: targetView.target.y + yOffset,
       z: targetView.target.z,
       duration: 0.8,
       ease: 'power2.inOut',
@@ -1394,7 +1399,7 @@ function navigateToRoom(targetRoomName: string) {
     const targetView = cameraViews[targetRoomName];
     tl.to(camera.position, {
       x: targetView.position.x,
-      y: targetView.position.y,
+      y: targetView.position.y + yOffset,
       z: targetView.position.z,
       duration: 0.65,
       ease: 'power2.inOut'
@@ -1402,7 +1407,7 @@ function navigateToRoom(targetRoomName: string) {
 
     tl.to(controls.target, {
       x: targetView.target.x,
-      y: targetView.target.y,
+      y: targetView.target.y + yOffset,
       z: targetView.target.z,
       duration: 0.65,
       ease: 'power2.inOut',
@@ -1587,11 +1592,36 @@ function toggleTheme() {
 // UI Bindings & Highlights
 // ----------------------------------------------------
 function setupEvents() {
-  // Navigation
+  // Navigation & Mobile Hamburger Toggle
+  const menuToggleBtn = document.getElementById('menu-toggle-btn');
+  const navbarEl = document.querySelector('.navbar');
+
+  if (menuToggleBtn && navbarEl) {
+    menuToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      navbarEl.classList.toggle('open');
+      menuToggleBtn.textContent = navbarEl.classList.contains('open') ? '✕' : '☰';
+    });
+
+    // Close menu when clicking outside
+    document.addEventListener('click', () => {
+      if (navbarEl.classList.contains('open')) {
+        navbarEl.classList.remove('open');
+        menuToggleBtn.textContent = '☰';
+      }
+    });
+  }
+
   document.querySelectorAll('.nav-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const roomName = (e.currentTarget as HTMLElement).getAttribute('data-room');
       if (roomName) navigateToRoom(roomName);
+
+      // Close mobile drawer navbar on click
+      if (navbarEl && menuToggleBtn) {
+        navbarEl.classList.remove('open');
+        menuToggleBtn.textContent = '☰';
+      }
     });
   });
 
@@ -1739,6 +1769,14 @@ function highlightScreen(idx: number, turnOn: boolean) {
 // ----------------------------------------------------
 function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
+  
+  // Responsive FOV (Wider field of view for narrow portrait screens so the 3D house fits!)
+  if (camera.aspect < 1.0) {
+    camera.fov = 56;
+  } else {
+    camera.fov = 42;
+  }
+  
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
 }
