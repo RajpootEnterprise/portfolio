@@ -71,7 +71,7 @@
             Hi, I'm Siddhant. I am a software developer specializing in immersive 3D web applications, real-time graphics, and robust full-stack architectures. Welcome to my virtual house!
           </p>
           <div class="action-buttons">
-            <button class="btn btn-primary" onclick="document.getElementById('btn-about').click()">Explore About Me</button>
+            <a href="/Siddhant_Singh_Rajpoot_Resume.pdf" download="Siddhant_Singh_Rajpoot_Resume.pdf" class="btn btn-primary" id="btn-download-cv">Download CV</a>
             <button class="btn btn-secondary" onclick="document.getElementById('btn-projects').click()">See My Work</button>
           </div>
         </section>
@@ -81,26 +81,31 @@
           <div class="tagline">About Siddhant</div>
           <h2 class="heading-medium">Driven by Code & Design</h2>
           <p class="description">
-            I bridge the gap between complex software backend engineering and creative frontends. I spend my time writing clean TypeScript, designing 3D rooms in WebGL, and building fast servers.
+            I am an Associate Software Developer at High Tech Infosystem, specializing in high-performance backend systems, microservices architectures, and interactive 3D web applications. I bridge the gap between creative visual designs and robust server-side execution.
           </p>
           
-          <div class="skills-section">
-            <h3 class="section-title">Focus Areas</h3>
-            <div class="skill-grid">
-              <div class="skill-item">
-                <div class="skill-header">
-                  <span>Front-End Eng / 3D Graphics</span>
-                  <span>90%</span>
-                </div>
-                <div class="progress-bar"><div class="progress" style="width: 90%;"></div></div>
+          <div class="skills-section" style="margin-top: 15px;">
+            <h3 class="section-title">Education & Credentials</h3>
+            <div class="info-list" style="display: flex; flex-direction: column; gap: 10px; font-size: 0.86rem; margin-bottom: 20px;">
+              <div>
+                <strong>Baderia Global Institute of Engineering and Management</strong><br/>
+                Bachelor of Technology (B.Tech) // CGPA: 8.5
               </div>
-              <div class="skill-item">
-                <div class="skill-header">
-                  <span>System Architecture / Backend</span>
-                  <span>85%</span>
-                </div>
-                <div class="progress-bar"><div class="progress" style="width: 85%;"></div></div>
+              <div>
+                <strong>AWS Certified Cloud Practitioner</strong><br/>
+                Amazon Web Services (AWS Cloud Quest)
               </div>
+              <div>
+                <strong>5G Competence Training (TSSC)</strong><br/>
+                Specialization in Networking, Signaling, & Hardware
+              </div>
+            </div>
+
+            <h3 class="section-title">Achievements</h3>
+            <div class="info-list" style="display: flex; flex-direction: column; gap: 8px; font-size: 0.86rem;">
+              <div>✦ Participated in <strong>Smart India Hackathon (SIH)</strong>, national hackathon.</div>
+              <div>✦ Participated in the <strong>Odoo Hackathon</strong>, solving real-world challenges.</div>
+              <div>✦ Received the <strong>Best Judge Award</strong> at the college Tech Fest.</div>
             </div>
           </div>
         </section>
@@ -110,32 +115,32 @@
           <div class="tagline">My Journey</div>
           <h2 class="heading-medium">Professional Path</h2>
           <p class="description">
-            Here is a timeline of my industry experience and accomplishments.
+            A chronological timeline of my professional industry experience and engineering roles.
           </p>
           
           <div class="timeline-list">
             <div class="timeline-item">
               <div class="time-dot"></div>
-              <div class="time-period">2024 - Present</div>
-              <h4 class="time-title">Lead 3D Developer</h4>
-              <p class="time-company">Rajpoot Enterprise</p>
-              <p class="time-desc">Engineering real-time physics and multiplayer graphics structures on the web.</p>
+              <div class="time-period">June 2026 - Present</div>
+              <h4 class="time-title">Associate Software Developer</h4>
+              <p class="time-company">High Tech Infosystem</p>
+              <p class="time-desc">Own development of the billing microservice for the live BroadNet.ai platform. Collaborate with backend, QA, and product teams using Kafka, Kubernetes, and Docker-based microservices.</p>
             </div>
             
             <div class="timeline-item">
               <div class="time-dot"></div>
-              <div class="time-period">2022 - 2024</div>
-              <h4 class="time-title">Full Stack Engineer</h4>
-              <p class="time-company">ByteScale Studio</p>
-              <p class="time-desc">Built microservices with Node.js and high-frequency real-time web socket layers.</p>
+              <div class="time-period">Feb 2026 - May 2026</div>
+              <h4 class="time-title">Software Development Intern</h4>
+              <p class="time-company">High Tech Infosystem</p>
+              <p class="time-desc">Onboarded onto the live BroadNet.ai production codebase. Contributed to billing microservices and integrated payment gateways through hands-on work.</p>
             </div>
 
             <div class="timeline-item">
               <div class="time-dot"></div>
-              <div class="time-period">2020 - 2022</div>
-              <h4 class="time-title">Junior Web Developer</h4>
-              <p class="time-company">InnoTech Solutions</p>
-              <p class="time-desc">Maintained responsive React pages and optimized database indexing.</p>
+              <div class="time-period">Feb 2025 - June 2025</div>
+              <h4 class="time-title">GMB Developer</h4>
+              <p class="time-company">MBG Cards</p>
+              <p class="time-desc">Built microservices, REST APIs, and stripe/third-party payment gateway integrations for card production environments.</p>
             </div>
           </div>
         </section>
@@ -145,40 +150,42 @@
           <div class="tagline">Creative Portfolio</div>
           <h2 class="heading-medium">Selected Creations</h2>
           <p class="description">
-            Here are some highlighted projects. Hover over any project to highlight the corresponding screen in the developer workshop!
+            Here are my highlighted engineering projects. Hover over a project to highlight its display screen inside the 3D developer workshop!
           </p>
           
           <div class="projects-list">
             <div class="project-card" data-proj-id="0">
-              <div class="project-meta">01 / THREEJS ENGINE</div>
-              <h4 class="project-title">3D Metaverse Workplace</h4>
-              <p class="project-desc">A multiplayer virtual office space built with Three.js, WebSockets, and WebRTC for remote teams.</p>
+              <div class="project-meta">01 / MICROSERVICE [LIVE]</div>
+              <h4 class="project-title">BroadNet.ai Billing Service</h4>
+              <p class="project-desc">Built and maintained a production-grade billing microservice. Integrated Stripe for end-to-end prepaid and postpaid billing workflows with high reliability.</p>
               <div class="project-tags">
-                <span>Three.js</span>
-                <span>Node.js</span>
-                <span>WebSockets</span>
+                <span>Java</span>
+                <span>Spring Boot</span>
+                <span>Kafka</span>
+                <span>Docker</span>
               </div>
             </div>
             
             <div class="project-card" data-proj-id="1">
-              <div class="project-meta">02 / WEBGL SHADERS</div>
-              <h4 class="project-title">Procedural Shader Cosmos</h4>
-              <p class="project-desc">Interactive celestial bodies and black hole simulations rendered using custom GLSL fragment shaders.</p>
+              <div class="project-meta">02 / CORE JAVA & WEB</div>
+              <h4 class="project-title">E-Learning Platform</h4>
+              <p class="project-desc">A role-based e-learning dashboard using Core Java and Servlets. Implemented student/mentor access hierarchies and structured video learning paths.</p>
               <div class="project-tags">
-                <span>GLSL</span>
-                <span>WebGL</span>
-                <span>Math</span>
+                <span>Core Java</span>
+                <span>Servlets</span>
+                <span>JSP</span>
+                <span>MySQL</span>
               </div>
             </div>
             
             <div class="project-card" data-proj-id="2">
-              <div class="project-meta">03 / APPLICATION</div>
-              <h4 class="project-title">SaaS Analytics Dashboard</h4>
-              <p class="project-desc">A highly responsive dashboard visualizing complex real-time business telemetry with d3.js and React.</p>
+              <div class="project-meta">03 / AWS CLOUD & R&D</div>
+              <h4 class="project-title">AWS Cloud Systems & 5G</h4>
+              <p class="project-desc">Hands-on cloud architecture (AWS Cloud Quest Cloud Practitioner) integrated with TSSC 5G Advance Competence research on signaling and networking protocols.</p>
               <div class="project-tags">
-                <span>React</span>
-                <span>D3.js</span>
-                <span>Tailwind</span>
+                <span>AWS</span>
+                <span>5G Systems</span>
+                <span>Networking</span>
               </div>
             </div>
           </div>
@@ -189,33 +196,35 @@
           <div class="tagline">Technical Stack</div>
           <h2 class="heading-medium">Expertise Areas</h2>
           <p class="description">
-            A comprehensive breakdown of technologies and utilities that I write daily.
+            A comprehensive breakdown of technologies and languages I work with.
           </p>
           
           <div class="skills-block-grid">
             <div class="skills-category">
-              <h4 class="category-heading">Graphics & Frontend</h4>
+              <h4 class="category-heading">Languages & Frameworks</h4>
               <div class="badge-row">
-                <span class="skill-badge">Three.js</span>
-                <span class="skill-badge">WebGL</span>
-                <span class="skill-badge">React / Next.js</span>
-                <span class="skill-badge">TypeScript</span>
-                <span class="skill-badge">TailwindCSS</span>
-                <span class="skill-badge">GLSL Shaders</span>
-                <span class="skill-badge">GSAP</span>
+                <span class="skill-badge">Java</span>
+                <span class="skill-badge">DSA</span>
+                <span class="skill-badge">Spring Boot</span>
+                <span class="skill-badge">REST APIs</span>
+                <span class="skill-badge">JavaScript / ES6</span>
+                <span class="skill-badge">HTML5 / CSS3</span>
+                <span class="skill-badge">Bootstrap</span>
               </div>
             </div>
             
             <div class="skills-category" style="margin-top: 20px;">
-              <h4 class="category-heading">Back-End & Devops</h4>
+              <h4 class="category-heading">Tools, Platforms & Concepts</h4>
               <div class="badge-row">
-                <span class="skill-badge">Node.js</span>
-                <span class="skill-badge">Express / Fastify</span>
-                <span class="skill-badge">MongoDB / SQL</span>
-                <span class="skill-badge">WebSockets</span>
                 <span class="skill-badge">Docker</span>
-                <span class="skill-badge">Git / Actions</span>
-                <span class="skill-badge">Redis</span>
+                <span class="skill-badge">Kubernetes</span>
+                <span class="skill-badge">Kafka</span>
+                <span class="skill-badge">CI/CD</span>
+                <span class="skill-badge">Amazon Web Services (AWS)</span>
+                <span class="skill-badge">MySQL</span>
+                <span class="skill-badge">Microservices Architecture</span>
+                <span class="skill-badge">System Design Basics</span>
+                <span class="skill-badge">Hadoop</span>
               </div>
             </div>
           </div>
@@ -260,9 +269,36 @@
       </footer>
     </div>
 
-    <!-- Custom cursor elements (desktop only) -->
-    <div class="custom-cursor-dot" id="cursor-dot"></div>
-    <div class="custom-cursor-ring" id="cursor-ring"></div>
+    <!-- Space Flight Project Detail Overlay -->
+    <div class="project-detail-overlay" id="project-detail-overlay">
+      <div class="project-detail-window">
+        <button class="close-detail-btn" id="btn-return-earth">
+          <span class="btn-icon">🚀</span> Return to Earth
+        </button>
+        <div class="project-detail-content">
+          <div class="project-detail-header">
+            <span class="project-detail-meta" id="project-detail-meta">01 / CATEGORY</span>
+            <h2 class="project-detail-title" id="project-detail-title">Project Title</h2>
+            <div class="project-detail-tags" id="project-detail-tags">
+              <span>Tag</span>
+            </div>
+          </div>
+          <hr class="project-detail-divider"/>
+          <div class="project-detail-body">
+            <div class="project-detail-section">
+              <h4>Overview</h4>
+              <p id="project-detail-desc">Detailed overview of the project goes here...</p>
+            </div>
+            <div class="project-detail-section">
+              <h4>Key Features & Achievements</h4>
+              <ul id="project-detail-features">
+                <li>Feature details...</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Interactive House Controller Widget -->
     <div class="control-widget" id="control-widget">
