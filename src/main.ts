@@ -62,6 +62,10 @@ let cursorX = mouseX;
 let cursorY = mouseY;
 let cursorDotEl: HTMLElement | null = null;
 let cursorRingEl: HTMLElement | null = null;
+let magneticTarget: HTMLElement | null = null;
+let cursorW = 32;
+let cursorH = 32;
+let cursorR = 16;
 
 // State
 let currentRoom = 'home';
@@ -286,9 +290,11 @@ function init() {
       el.setAttribute('data-cursor-bound', 'true');
       
       el.addEventListener('mouseenter', () => {
+        magneticTarget = el as HTMLElement;
         if (cursorRingEl) cursorRingEl.classList.add('hover');
       });
       el.addEventListener('mouseleave', () => {
+        magneticTarget = null;
         if (cursorRingEl) cursorRingEl.classList.remove('hover');
       });
     });
@@ -1946,10 +1952,42 @@ function animate(time: number) {
 
   // Lerp custom cursor ring position (desktop fine pointers only)
   if (cursorRingEl) {
-    cursorX += (mouseX - cursorX) * 0.16;
-    cursorY += (mouseY - cursorY) * 0.16;
+    if (magneticTarget) {
+      const rect = magneticTarget.getBoundingClientRect();
+      const targetX = rect.left + rect.width / 2;
+      const targetY = rect.top + rect.height / 2;
+      const targetW = rect.width + 12;
+      const targetH = rect.height + 12;
+      
+      // Calculate border radius
+      const style = window.getComputedStyle(magneticTarget);
+      const borderRadiusStr = style.borderRadius;
+      let targetR = 8; // fallback
+      if (borderRadiusStr.endsWith('px')) {
+        targetR = parseFloat(borderRadiusStr) + 6;
+      } else if (borderRadiusStr.includes('%')) {
+        targetR = targetH / 2;
+      }
+      
+      cursorX += (targetX - cursorX) * 0.18;
+      cursorY += (targetY - cursorY) * 0.18;
+      cursorW += (targetW - cursorW) * 0.18;
+      cursorH += (targetH - cursorH) * 0.18;
+      cursorR += (targetR - cursorR) * 0.18;
+    } else {
+      cursorX += (mouseX - cursorX) * 0.14;
+      cursorY += (mouseY - cursorY) * 0.14;
+      const targetSize = cursorRingEl.classList.contains('hover') ? 48 : 32;
+      cursorW += (targetSize - cursorW) * 0.18;
+      cursorH += (targetSize - cursorH) * 0.18;
+      cursorR += (targetSize / 2 - cursorR) * 0.18;
+    }
+    
     cursorRingEl.style.left = cursorX + 'px';
     cursorRingEl.style.top = cursorY + 'px';
+    cursorRingEl.style.width = cursorW + 'px';
+    cursorRingEl.style.height = cursorH + 'px';
+    cursorRingEl.style.borderRadius = cursorR + 'px';
   }
 
   // Update controls
