@@ -4,10 +4,260 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>portfolio</title>
+    <title>Siddhant Singh Rajpoot // Developer Portfolio</title>
+    <!-- Google Fonts: Plus Jakarta Sans for UI and Playfair Display for headings -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
   </head>
   <body>
-    <div id="app"></div>
+    <!-- Three.js Canvas Container -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="ui-layer">
+      <!-- Header -->
+      <header class="main-header">
+        <div class="logo">
+          <span class="logo-symbol">✦</span>
+          <span class="logo-text">S.S.RAJPOOT<span class="accent">.DEV</span></span>
+        </div>
+        
+        <!-- Navigation -->
+        <nav class="navbar">
+          <button class="nav-btn active" id="btn-home" data-room="home">
+            <span class="nav-dot"></span>
+            <span class="nav-text">Home</span>
+          </button>
+          <button class="nav-btn" id="btn-about" data-room="about">
+            <span class="nav-dot"></span>
+            <span class="nav-text">About</span>
+          </button>
+          <button class="nav-btn" id="btn-timeline" data-room="timeline">
+            <span class="nav-dot"></span>
+            <span class="nav-text">Timeline</span>
+          </button>
+          <button class="nav-btn" id="btn-projects" data-room="projects">
+            <span class="nav-dot"></span>
+            <span class="nav-text">Projects</span>
+          </button>
+          <button class="nav-btn" id="btn-skills" data-room="skills">
+            <span class="nav-dot"></span>
+            <span class="nav-text">Skills</span>
+          </button>
+          <button class="nav-btn" id="btn-contact" data-room="contact">
+            <span class="nav-dot"></span>
+            <span class="nav-text">Contact</span>
+          </button>
+        </nav>
+
+        <!-- Theme Toggle -->
+        <button class="theme-toggle" id="theme-toggle-btn" title="Toggle Light/Dark Theme">
+          <span class="toggle-icon">☾</span>
+        </button>
+      </header>
+
+      <!-- Content Panels Container -->
+      <main class="content-container">
+        
+        <!-- Home Overlay -->
+        <section class="info-card active" id-panel="home">
+          <div class="tagline">Welcome to my space</div>
+          <h1 class="heading-large">Crafting Interactive Digital Worlds</h1>
+          <p class="description">
+            Hi, I'm Siddhant. I am a software developer specializing in immersive 3D web applications, real-time graphics, and robust full-stack architectures. Welcome to my virtual house!
+          </p>
+          <div class="action-buttons">
+            <button class="btn btn-primary" onclick="document.getElementById('btn-about').click()">Explore About Me</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('btn-projects').click()">See My Work</button>
+          </div>
+        </section>
+
+        <!-- About Overlay -->
+        <section class="info-card" id-panel="about">
+          <div class="tagline">About Siddhant</div>
+          <h2 class="heading-medium">Driven by Code & Design</h2>
+          <p class="description">
+            I bridge the gap between complex software backend engineering and creative frontends. I spend my time writing clean TypeScript, designing 3D rooms in WebGL, and building fast servers.
+          </p>
+          
+          <div class="skills-section">
+            <h3 class="section-title">Focus Areas</h3>
+            <div class="skill-grid">
+              <div class="skill-item">
+                <div class="skill-header">
+                  <span>Front-End Eng / 3D Graphics</span>
+                  <span>90%</span>
+                </div>
+                <div class="progress-bar"><div class="progress" style="width: 90%;"></div></div>
+              </div>
+              <div class="skill-item">
+                <div class="skill-header">
+                  <span>System Architecture / Backend</span>
+                  <span>85%</span>
+                </div>
+                <div class="progress-bar"><div class="progress" style="width: 85%;"></div></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Timeline Overlay -->
+        <section class="info-card" id-panel="timeline">
+          <div class="tagline">My Journey</div>
+          <h2 class="heading-medium">Professional Path</h2>
+          <p class="description">
+            Here is a timeline of my industry experience and accomplishments.
+          </p>
+          
+          <div class="timeline-list">
+            <div class="timeline-item">
+              <div class="time-dot"></div>
+              <div class="time-period">2024 - Present</div>
+              <h4 class="time-title">Lead 3D Developer</h4>
+              <p class="time-company">Rajpoot Enterprise</p>
+              <p class="time-desc">Engineering real-time physics and multiplayer graphics structures on the web.</p>
+            </div>
+            
+            <div class="timeline-item">
+              <div class="time-dot"></div>
+              <div class="time-period">2022 - 2024</div>
+              <h4 class="time-title">Full Stack Engineer</h4>
+              <p class="time-company">ByteScale Studio</p>
+              <p class="time-desc">Built microservices with Node.js and high-frequency real-time web socket layers.</p>
+            </div>
+
+            <div class="timeline-item">
+              <div class="time-dot"></div>
+              <div class="time-period">2020 - 2022</div>
+              <h4 class="time-title">Junior Web Developer</h4>
+              <p class="time-company">InnoTech Solutions</p>
+              <p class="time-desc">Maintained responsive React pages and optimized database indexing.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Projects Overlay -->
+        <section class="info-card" id-panel="projects">
+          <div class="tagline">Creative Portfolio</div>
+          <h2 class="heading-medium">Selected Creations</h2>
+          <p class="description">
+            Here are some highlighted projects. Hover over any project to highlight the corresponding screen in the developer workshop!
+          </p>
+          
+          <div class="projects-list">
+            <div class="project-card" data-proj-id="0">
+              <div class="project-meta">01 / THREEJS ENGINE</div>
+              <h4 class="project-title">3D Metaverse Workplace</h4>
+              <p class="project-desc">A multiplayer virtual office space built with Three.js, WebSockets, and WebRTC for remote teams.</p>
+              <div class="project-tags">
+                <span>Three.js</span>
+                <span>Node.js</span>
+                <span>WebSockets</span>
+              </div>
+            </div>
+            
+            <div class="project-card" data-proj-id="1">
+              <div class="project-meta">02 / WEBGL SHADERS</div>
+              <h4 class="project-title">Procedural Shader Cosmos</h4>
+              <p class="project-desc">Interactive celestial bodies and black hole simulations rendered using custom GLSL fragment shaders.</p>
+              <div class="project-tags">
+                <span>GLSL</span>
+                <span>WebGL</span>
+                <span>Math</span>
+              </div>
+            </div>
+            
+            <div class="project-card" data-proj-id="2">
+              <div class="project-meta">03 / APPLICATION</div>
+              <h4 class="project-title">SaaS Analytics Dashboard</h4>
+              <p class="project-desc">A highly responsive dashboard visualizing complex real-time business telemetry with d3.js and React.</p>
+              <div class="project-tags">
+                <span>React</span>
+                <span>D3.js</span>
+                <span>Tailwind</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Skills Overlay -->
+        <section class="info-card" id-panel="skills">
+          <div class="tagline">Technical Stack</div>
+          <h2 class="heading-medium">Expertise Areas</h2>
+          <p class="description">
+            A comprehensive breakdown of technologies and utilities that I write daily.
+          </p>
+          
+          <div class="skills-block-grid">
+            <div class="skills-category">
+              <h4 class="category-heading">Graphics & Frontend</h4>
+              <div class="badge-row">
+                <span class="skill-badge">Three.js</span>
+                <span class="skill-badge">WebGL</span>
+                <span class="skill-badge">React / Next.js</span>
+                <span class="skill-badge">TypeScript</span>
+                <span class="skill-badge">TailwindCSS</span>
+                <span class="skill-badge">GLSL Shaders</span>
+                <span class="skill-badge">GSAP</span>
+              </div>
+            </div>
+            
+            <div class="skills-category" style="margin-top: 20px;">
+              <h4 class="category-heading">Back-End & Devops</h4>
+              <div class="badge-row">
+                <span class="skill-badge">Node.js</span>
+                <span class="skill-badge">Express / Fastify</span>
+                <span class="skill-badge">MongoDB / SQL</span>
+                <span class="skill-badge">WebSockets</span>
+                <span class="skill-badge">Docker</span>
+                <span class="skill-badge">Git / Actions</span>
+                <span class="skill-badge">Redis</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Contact Overlay -->
+        <section class="info-card" id-panel="contact">
+          <div class="tagline">Get in Touch</div>
+          <h2 class="heading-medium">Drop a Message</h2>
+          <p class="description">
+            Have an interesting project or want to say hello? Write me a message. My avatar will watch the mailbox!
+          </p>
+          
+          <form class="contact-form" id="portfolio-contact-form" onsubmit="return false;">
+            <div class="form-group">
+              <label for="form-name">Your Name</label>
+              <input type="text" id="form-name" placeholder="John Doe" required />
+            </div>
+            <div class="form-group">
+              <label for="form-email">Email Address</label>
+              <input type="email" id="form-email" placeholder="john@example.com" required />
+            </div>
+            <div class="form-group">
+              <label for="form-message">Message</label>
+              <textarea id="form-message" rows="3" placeholder="Tell me about your project..." required></textarea>
+            </div>
+            <button class="submit-btn" type="submit" id="form-submit-btn">Send Message</button>
+            <div class="success-message" id="form-success">
+              <span>✓ Message transmitted to the mailbox successfully!</span>
+            </div>
+          </form>
+        </section>
+      </main>
+
+      <!-- Footer Info -->
+      <footer class="main-footer">
+        <div class="location-status">
+          <span class="pulse-dot"></span>
+          <span class="status-text">Location: Room // <span id="current-room-text" class="room-highlight">Home Lobby</span></span>
+        </div>
+        <div class="instructions">Click tabs to move around the 3D house</div>
+      </footer>
+    </div>
+
+    <!-- Main JS entrypoint -->
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
