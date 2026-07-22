@@ -55,6 +55,14 @@ const floatingLabels: THREE.Mesh[] = [];
 // Floating tech shapes list
 const floatingTechShapes: THREE.Mesh[] = [];
 
+// Custom cursor state variables
+let mouseX = window.innerWidth / 2;
+let mouseY = window.innerHeight / 2;
+let cursorX = mouseX;
+let cursorY = mouseY;
+let cursorDotEl: HTMLElement | null = null;
+let cursorRingEl: HTMLElement | null = null;
+
 // State
 let currentRoom = 'home';
 let isTransitioning = false;
@@ -209,6 +217,12 @@ function init() {
   controls.enableDamping = true;
   controls.dampingFactor = 0.05;
   controls.target.set(0.0, 2.2, 0.0); // Center on middle floor crossroads
+
+  // Enable 1-finger rotate on mobile touch controls explicitly
+  controls.touches = {
+    ONE: THREE.TOUCH.ROTATE,
+    TWO: THREE.TOUCH.DOLLY_PAN
+  };
   
   // Angle limits (constrain orbit views)
   controls.maxPolarAngle = Math.PI / 2 - 0.08;
@@ -251,6 +265,39 @@ function init() {
 
   // Start Idle Inactivity Timer
   resetIdleTimer();
+
+  // Grab custom cursor elements and bind track actions (PC only)
+  cursorDotEl = document.getElementById('cursor-dot');
+  cursorRingEl = document.getElementById('cursor-ring');
+
+  document.addEventListener('mousemove', (e) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    if (cursorDotEl) {
+      cursorDotEl.style.left = mouseX + 'px';
+      cursorDotEl.style.top = mouseY + 'px';
+    }
+  });
+
+  const attachCursorHoverListeners = () => {
+    const selectors = 'a, button, .nav-btn, .project-card, .theme-toggle, .widget-toggle-btn, .widget-btn, .widget-btn-room';
+    document.querySelectorAll(selectors).forEach(el => {
+      if (el.getAttribute('data-cursor-bound') === 'true') return;
+      el.setAttribute('data-cursor-bound', 'true');
+      
+      el.addEventListener('mouseenter', () => {
+        if (cursorRingEl) cursorRingEl.classList.add('hover');
+      });
+      el.addEventListener('mouseleave', () => {
+        if (cursorRingEl) cursorRingEl.classList.remove('hover');
+      });
+    });
+  };
+  attachCursorHoverListeners();
+
+  // Observe DOM changes to dynamic nodes
+  const observer = new MutationObserver(attachCursorHoverListeners);
+  observer.observe(document.body, { childList: true, subtree: true });
 
   // Run Render Loop
   animate(0);
@@ -1691,8 +1738,104 @@ function setupEvents() {
   controls.addEventListener('start', () => {
     clearTimeout(idleTimer);
     controls.autoRotate = false;
+    
+    // Sync widget button label
+    const toggleSpinBtn = document.getElementById('btn-toggle-spin');
+    if (toggleSpinBtn) toggleSpinBtn.textContent = 'Spin: Off';
   });
-  controls.addEventListener('end', resetIdleTimer);
+  
+  controls.addEventListener('end', () => {
+    resetIdleTimer();
+    
+    // Sync widget button label back to true after timer triggers if autoRotate resumes
+    setTimeout(() => {
+      const toggleSpinBtn = document.getElementById('btn-toggle-spin');
+      if (toggleSpinBtn) {
+        toggleSpinBtn.textContent = controls.autoRotate ? 'Spin: On' : 'Spin: Off';
+      }
+    }, 6100);
+  });
+
+  // ----------------------------------------------------
+  // Collapsible Control Deck Dashboard Widget Event Bindings
+  // ----------------------------------------------------
+  const widgetToggleBtn = document.getElementById('widget-toggle-btn');
+  const controlWidget = document.getElementById('control-widget');
+  if (widgetToggleBtn && controlWidget) {
+    widgetToggleBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      controlWidget.classList.toggle('open');
+    });
+
+    // Close panel on clicking anywhere else outside of the panel
+    document.addEventListener('click', () => {
+      controlWidget.classList.remove('open');
+    });
+
+    // Prevent click inside the widget panel from closing the panel
+    const widgetPanel = document.getElementById('widget-panel');
+    if (widgetPanel) {
+      widgetPanel.addEventListener('click', (e) => {
+        e.stopPropagation();
+      });
+    }
+  }
+
+  // Reset View Camera Action (Overview Mode)
+  const resetViewBtn = document.getElementById('btn-reset-view');
+  if (resetViewBtn) {
+    resetViewBtn.addEventListener('click', () => {
+      // Fade out active room content card
+      const activeCard = document.querySelector('.info-card.active');
+      if (activeCard) activeCard.classList.remove('active');
+
+      // Deactivate menu tabs
+      document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+
+      // Set footer room text back to overview
+      const labelEl = document.getElementById('current-room-text');
+      if (labelEl) labelEl.textContent = 'House Overview';
+
+      // Reset transition state
+      isTransitioning = false;
+      currentRoom = 'home';
+
+      // Reset avatar animation back to idle/waving at base
+      if (avatar) {
+        avatar.setState('waving');
+      }
+
+      // Smooth camera reset transition
+      gsap.to(camera.position, { x: -16.5, y: 12.0, z: 19.5, duration: 1.5, ease: 'power2.inOut' });
+      gsap.to(controls.target, { x: 0.0, y: 2.2, z: 0.0, duration: 1.5, ease: 'power2.inOut', onUpdate: () => controls.update() });
+
+      // Start spinning again
+      controls.autoRotate = true;
+      
+      // Close mobile drawer widget panel
+      if (controlWidget) controlWidget.classList.remove('open');
+    });
+  }
+
+  // Toggle Spin Camera Action
+  const toggleSpinBtn = document.getElementById('btn-toggle-spin');
+  if (toggleSpinBtn) {
+    toggleSpinBtn.addEventListener('click', () => {
+      controls.autoRotate = !controls.autoRotate;
+      toggleSpinBtn.textContent = controls.autoRotate ? 'Spin: On' : 'Spin: Off';
+    });
+  }
+
+  // Floor Grid Room Travel Buttons
+  document.querySelectorAll('.widget-btn-room').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const roomName = (e.currentTarget as HTMLElement).getAttribute('data-room');
+      if (roomName) navigateToRoom(roomName);
+
+      // Close mobile drawer widget panel on selection
+      if (controlWidget) controlWidget.classList.remove('open');
+    });
+  });
 }
 
 // Raycaster Click Handler
@@ -1736,6 +1879,18 @@ function onCanvasMouseMove(event: MouseEvent) {
     }
   }
   renderer.domElement.style.cursor = foundHoverable ? 'pointer' : 'auto';
+
+  // Toggle hover state on custom cursor ring
+  if (cursorRingEl) {
+    if (foundHoverable) {
+      cursorRingEl.classList.add('hover');
+    } else {
+      const activeHoverEl = document.querySelector('button:hover, a:hover, .project-card:hover');
+      if (!activeHoverEl) {
+        cursorRingEl.classList.remove('hover');
+      }
+    }
+  }
 }
 
 // Idle timeout to reset auto rotation
@@ -1788,6 +1943,14 @@ function animate(time: number) {
   requestAnimationFrame(animate);
 
   const seconds = time * 0.001;
+
+  // Lerp custom cursor ring position (desktop fine pointers only)
+  if (cursorRingEl) {
+    cursorX += (mouseX - cursorX) * 0.16;
+    cursorY += (mouseY - cursorY) * 0.16;
+    cursorRingEl.style.left = cursorX + 'px';
+    cursorRingEl.style.top = cursorY + 'px';
+  }
 
   // Update controls
   controls.update();
