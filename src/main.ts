@@ -32,6 +32,9 @@ let rotorSpeed = 0;
 let isSpaceTrip = false;
 let thrusterFireL: THREE.Mesh;
 let thrusterFireR: THREE.Mesh;
+let cityGroup: THREE.Group;
+const cityHelipads: THREE.Vector3[] = [];
+let currentPlanetHelipadIdx = 0;
 
 // References to environment elements
 let sunGroup: THREE.Group;
@@ -64,18 +67,6 @@ const floatingLabels: THREE.Mesh[] = [];
 
 // Floating tech shapes list
 const floatingTechShapes: THREE.Mesh[] = [];
-
-// Custom cursor state variables
-let mouseX = window.innerWidth / 2;
-let mouseY = window.innerHeight / 2;
-let cursorX = mouseX;
-let cursorY = mouseY;
-let cursorDotEl: HTMLElement | null = null;
-let cursorRingEl: HTMLElement | null = null;
-let magneticTarget: HTMLElement | null = null;
-let cursorW = 32;
-let cursorH = 32;
-let cursorR = 16;
 
 // State
 let currentRoom = 'home';
@@ -265,6 +256,7 @@ function init() {
   // Create Helipad & Helicopter
   createHelipad();
   createHelicopter();
+  createSpaceCity();
 
   // Instantiate Avatar
   avatar = new Avatar();
@@ -284,40 +276,7 @@ function init() {
   // Start Idle Inactivity Timer
   resetIdleTimer();
 
-  // Grab custom cursor elements and bind track actions (PC only)
-  cursorDotEl = document.getElementById('cursor-dot');
-  cursorRingEl = document.getElementById('cursor-ring');
 
-  document.addEventListener('mousemove', (e) => {
-    mouseX = e.clientX;
-    mouseY = e.clientY;
-    if (cursorDotEl) {
-      cursorDotEl.style.left = mouseX + 'px';
-      cursorDotEl.style.top = mouseY + 'px';
-    }
-  });
-
-  const attachCursorHoverListeners = () => {
-    const selectors = 'a, button, .nav-btn, .project-card, .theme-toggle, .widget-toggle-btn, .widget-btn, .widget-btn-room';
-    document.querySelectorAll(selectors).forEach(el => {
-      if (el.getAttribute('data-cursor-bound') === 'true') return;
-      el.setAttribute('data-cursor-bound', 'true');
-      
-      el.addEventListener('mouseenter', () => {
-        magneticTarget = el as HTMLElement;
-        if (cursorRingEl) cursorRingEl.classList.add('hover');
-      });
-      el.addEventListener('mouseleave', () => {
-        magneticTarget = null;
-        if (cursorRingEl) cursorRingEl.classList.remove('hover');
-      });
-    });
-  };
-  attachCursorHoverListeners();
-
-  // Observe DOM changes to dynamic nodes
-  const observer = new MutationObserver(attachCursorHoverListeners);
-  observer.observe(document.body, { childList: true, subtree: true });
 
   // Run Render Loop
   animate(0);
@@ -1526,6 +1485,133 @@ function createHelicopter() {
   scene.add(helicopter);
 }
 
+function createSpaceCity() {
+  cityGroup = new THREE.Group();
+  
+  // Platform base plate for the floating district
+  const baseGeo = new THREE.CylinderGeometry(3.6, 3.8, 0.15, 32);
+  const baseMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.2 });
+  const cityBase = new THREE.Mesh(baseGeo, baseMat);
+  cityBase.position.y = 11.0;
+  cityBase.receiveShadow = true;
+  cityBase.castShadow = true;
+  cityGroup.add(cityBase);
+
+  // Glowing neon ring outlining the floating district
+  const ringGeo = new THREE.TorusGeometry(3.7, 0.04, 8, 32);
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4 });
+  const glowRing = new THREE.Mesh(ringGeo, ringMat);
+  glowRing.rotation.x = Math.PI / 2;
+  glowRing.position.y = 11.08;
+  cityGroup.add(glowRing);
+
+  // Specifications for the 10 futuristic skyscrapers (relative positions & heights)
+  const buildingSpecs = [
+    { rx: -2.0, rz: -2.0, h: 2.5, color: 0x222533, lightColor: 0x3b82f6 },
+    { rx: -0.8, rz: -2.4, h: 3.2, color: 0x181a24, lightColor: 0x10b981 },
+    { rx: 1.0, rz: -2.4, h: 2.2, color: 0x272b3c, lightColor: 0xeab308 },
+    { rx: 2.2, rz: -1.2, h: 3.0, color: 0x1e202b, lightColor: 0x6366f1 },
+    { rx: 2.4, rz: 0.5, h: 2.8, color: 0x222533, lightColor: 0xec4899 },
+    { rx: 1.4, rz: 2.0, h: 3.8, color: 0x181a24, lightColor: 0x06b6d4 },
+    { rx: -0.4, rz: 2.4, h: 2.4, color: 0x272b3c, lightColor: 0xa855f7 },
+    { rx: -2.0, rz: 1.8, h: 3.4, color: 0x1e202b, lightColor: 0xef4444 },
+    { rx: -2.5, rz: -0.2, h: 2.8, color: 0x222533, lightColor: 0x10b981 },
+    { rx: 0.0, rz: 0.0, h: 4.2, color: 0x0f111a, lightColor: 0xeab308 } // Center tower
+  ];
+
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e2022, roughness: 0.5, metalness: 0.8 });
+
+  buildingSpecs.forEach((spec, i) => {
+    // 1. Skyscraper Structure
+    const bW = i === 9 ? 0.95 : 0.75; // wider center tower
+    const bGeo = new THREE.BoxGeometry(bW, spec.h, bW);
+    const bMat = new THREE.MeshStandardMaterial({ color: spec.color, metalness: 0.85, roughness: 0.15 });
+    const bMesh = new THREE.Mesh(bGeo, bMat);
+    bMesh.position.set(-16.0 + spec.rx, 11.0 + spec.h / 2, -18.0 + spec.rz);
+    bMesh.castShadow = true;
+    bMesh.receiveShadow = true;
+    cityGroup.add(bMesh);
+
+    // 2. Glowing office window neon bands
+    const stripeCount = Math.floor(spec.h / 0.55);
+    for (let j = 1; j < stripeCount; j++) {
+      const band = new THREE.Mesh(
+        new THREE.BoxGeometry(bW + 0.02, 0.04, bW + 0.02),
+        new THREE.MeshBasicMaterial({ color: spec.lightColor })
+      );
+      band.position.set(
+        -16.0 + spec.rx,
+        11.0 + j * 0.55,
+        -18.0 + spec.rz
+      );
+      cityGroup.add(band);
+    }
+
+    // 3. Helicopter Landing Pad on the roof
+    const padRadius = i === 9 ? 0.32 : 0.25;
+    const padGroup = new THREE.Group();
+    padGroup.position.set(-16.0 + spec.rx, 11.0 + spec.h + 0.005, -18.0 + spec.rz);
+
+    const plate = new THREE.Mesh(
+      new THREE.CylinderGeometry(padRadius, padRadius, 0.01, 16),
+      new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 })
+    );
+    padGroup.add(plate);
+
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(padRadius - 0.015, 0.008, 4, 16),
+      new THREE.MeshBasicMaterial({ color: spec.lightColor })
+    );
+    ring.rotation.x = Math.PI / 2;
+    ring.position.y = 0.006;
+    padGroup.add(ring);
+
+    const lineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    const hL = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.001, 0.12), lineMat);
+    hL.position.set(-0.04, 0.007, 0);
+    const hR = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.001, 0.12), lineMat);
+    hR.position.set(0.04, 0.007, 0);
+    const hC = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.001, 0.02), lineMat);
+    hC.position.set(0, 0.007, 0);
+    padGroup.add(hL, hR, hC);
+
+    cityGroup.add(padGroup);
+
+    // Save world coordinate of this building's landing zone
+    cityHelipads.push(new THREE.Vector3(
+      -16.0 + spec.rx,
+      11.0 + spec.h + 0.02,
+      -18.0 + spec.rz
+    ));
+
+    // 4. Rooftop Details: Antennas with blinking lights
+    if (i % 2 === 1) {
+      const antenna = new THREE.Group();
+      antenna.position.set(-16.0 + spec.rx - 0.22, 11.0 + spec.h, -18.0 + spec.rz - 0.22);
+      
+      const mast = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.01, 0.015, 0.4, 8),
+        frameMat
+      );
+      mast.position.y = 0.2;
+      antenna.add(mast);
+
+      const tip = new THREE.Mesh(
+        new THREE.SphereGeometry(0.018, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xef4444 }) // Red warning light
+      );
+      tip.position.y = 0.4;
+      antenna.add(tip);
+
+      cityGroup.add(antenna);
+    }
+  });
+
+  // Start collapsed (will scale up when flying to space)
+  cityGroup.scale.set(0.001, 0.001, 0.001);
+  scene.add(cityGroup);
+}
+
 // ----------------------------------------------------
 // Clickable Floating 3D Labels
 // ----------------------------------------------------
@@ -2338,18 +2424,6 @@ function onCanvasMouseMove(event: MouseEvent) {
     }
   }
   renderer.domElement.style.cursor = foundHoverable ? 'pointer' : 'auto';
-
-  // Toggle hover state on custom cursor ring
-  if (cursorRingEl) {
-    if (foundHoverable) {
-      cursorRingEl.classList.add('hover');
-    } else {
-      const activeHoverEl = document.querySelector('button:hover, a:hover, .project-card:hover');
-      if (!activeHoverEl) {
-        cursorRingEl.classList.remove('hover');
-      }
-    }
-  }
 }
 
 // Idle timeout to reset auto rotation
@@ -2403,45 +2477,7 @@ function animate(time: number) {
 
   const seconds = time * 0.001;
 
-  // Lerp custom cursor ring position (desktop fine pointers only)
-  if (cursorRingEl) {
-    if (magneticTarget) {
-      const rect = magneticTarget.getBoundingClientRect();
-      const targetX = rect.left + rect.width / 2;
-      const targetY = rect.top + rect.height / 2;
-      const targetW = rect.width + 12;
-      const targetH = rect.height + 12;
-      
-      // Calculate border radius
-      const style = window.getComputedStyle(magneticTarget);
-      const borderRadiusStr = style.borderRadius;
-      let targetR = 8; // fallback
-      if (borderRadiusStr.endsWith('px')) {
-        targetR = parseFloat(borderRadiusStr) + 6;
-      } else if (borderRadiusStr.includes('%')) {
-        targetR = targetH / 2;
-      }
-      
-      cursorX += (targetX - cursorX) * 0.18;
-      cursorY += (targetY - cursorY) * 0.18;
-      cursorW += (targetW - cursorW) * 0.18;
-      cursorH += (targetH - cursorH) * 0.18;
-      cursorR += (targetR - cursorR) * 0.18;
-    } else {
-      cursorX += (mouseX - cursorX) * 0.14;
-      cursorY += (mouseY - cursorY) * 0.14;
-      const targetSize = cursorRingEl.classList.contains('hover') ? 48 : 32;
-      cursorW += (targetSize - cursorW) * 0.18;
-      cursorH += (targetSize - cursorH) * 0.18;
-      cursorR += (targetSize / 2 - cursorR) * 0.18;
-    }
-    
-    cursorRingEl.style.left = cursorX + 'px';
-    cursorRingEl.style.top = cursorY + 'px';
-    cursorRingEl.style.width = cursorW + 'px';
-    cursorRingEl.style.height = cursorH + 'px';
-    cursorRingEl.style.borderRadius = cursorR + 'px';
-  }
+
 
   // Update controls vertical bobbing during auto-rotation
   if (controls.autoRotate && !isTransitioning && !isSpaceTrip) {
@@ -2563,6 +2599,10 @@ function flyToPlanet(projectId: number) {
   isSpaceTrip = true;
   isTransitioning = true; // Lock other room transitions
 
+  // Pick a random helipad (0 to 9) in the space city
+  currentPlanetHelipadIdx = Math.floor(Math.random() * 10);
+  const targetLandingPos = cityHelipads[currentPlanetHelipadIdx];
+
   // Hide the standard Projects info card panel
   const activeCard = document.querySelector('.info-card.active');
   if (activeCard) activeCard.classList.remove('active');
@@ -2592,7 +2632,7 @@ function flyToPlanet(projectId: number) {
   // Create Flight path Timeline
   const tl = gsap.timeline({
     onComplete: () => {
-      // Arrived at the planet! Open project details overlay
+      // Arrived at the planet city helipad! Open project details overlay
       const detail = projectDetails[projectId];
       document.getElementById('project-detail-meta')!.textContent = detail.meta;
       document.getElementById('project-detail-title')!.textContent = detail.title;
@@ -2625,9 +2665,8 @@ function flyToPlanet(projectId: number) {
     ease: 'power1.inOut'
   });
 
-  // 2. Rotate to face the planet & tilt forward
-  // Planet is at (-16, 14, -18). Helicopter is at (-3.75, HEIGHTS.second + 4.8, 0)
-  const angleToPlanet = Math.atan2(-16 - (-3.75), -18 - 0);
+  // 2. Rotate to face the selected skyscraper helipad & tilt forward
+  const angleToPlanet = Math.atan2(targetLandingPos.x - (-3.75), targetLandingPos.z - 0);
   tl.to(helicopter.rotation, {
     y: angleToPlanet,
     x: 0.25, // tilt forward
@@ -2635,28 +2674,28 @@ function flyToPlanet(projectId: number) {
     ease: 'power1.inOut'
   }, '<+=0.6');
 
-  // 3. Fly to planet + Pan camera to follow
+  // 3. Fly to space city (hover above the target helipad)
   tl.to(helicopter.position, {
-    x: -12.5,
-    y: 13.5,
-    z: -14.0,
+    x: targetLandingPos.x,
+    y: targetLandingPos.y + 0.6, // approach from slightly above
+    z: targetLandingPos.z,
     duration: 3.5,
     ease: 'power2.inOut'
   }, '+=0.1');
 
-  // Move camera & controls target to follow
+  // Move camera & controls target to track and frame the landing zone
   tl.to(camera.position, {
-    x: -6.0,
-    y: 16.0,
-    z: -7.0,
+    x: targetLandingPos.x + 3.8,
+    y: targetLandingPos.y + 2.0,
+    z: targetLandingPos.z + 4.2,
     duration: 3.5,
     ease: 'power2.inOut'
   }, '<');
 
   tl.to(controls.target, {
-    x: -16.0,
-    y: 14.0,
-    z: -18.0,
+    x: targetLandingPos.x,
+    y: targetLandingPos.y,
+    z: targetLandingPos.z,
     duration: 3.5,
     ease: 'power2.inOut',
     onUpdate: () => controls.update()
@@ -2691,19 +2730,28 @@ function flyToPlanet(projectId: number) {
     duration: 3.0
   }, '<');
 
-  // Scale up the Saturn planet group to make it huge and detailed
-  tl.to(planetGroup.scale, {
-    x: 4.8,
-    y: 4.8,
-    z: 4.8,
+  // Scale up the space city group
+  tl.to(cityGroup.scale, {
+    x: 1.0,
+    y: 1.0,
+    z: 1.0,
     duration: 3.5,
     ease: 'power2.inOut'
   }, '<');
 
-  // 4. Slow down rotors, hover level, and dim engines
+  // Scale up the planet group to make it even larger
+  tl.to(planetGroup.scale, {
+    x: 6.5,
+    y: 6.5,
+    z: 6.5,
+    duration: 3.5,
+    ease: 'power2.inOut'
+  }, '<');
+
+  // 4. Slow down rotors, hover level, and descend to land on skyscraper
   tl.to(helicopter.rotation, {
-    x: 0.05, // Slight nose hover up
-    duration: 1.2,
+    x: 0.05, // Level tilt
+    duration: 1.0,
     ease: 'power1.out'
   }, '+=0.1');
 
@@ -2712,7 +2760,7 @@ function flyToPlanet(projectId: number) {
       x: 0.001,
       y: 0.001,
       z: 0.001,
-      duration: 1.2
+      duration: 1.0
     }, '<');
   }
 
@@ -2724,11 +2772,20 @@ function flyToPlanet(projectId: number) {
       rotorSpeed = rotorControl.value;
     }
   }, '<');
+
+  // Vertical descent onto the pad
+  tl.to(helicopter.position, {
+    y: targetLandingPos.y,
+    duration: 1.2,
+    ease: 'power1.inOut'
+  }, '<');
 }
 
 function returnToEarth() {
   // Hide details panel
   document.getElementById('project-detail-overlay')!.classList.remove('active');
+
+  const targetLandingPos = cityHelipads[currentPlanetHelipadIdx];
 
   // Spin up rotors
   const rotorControl = { value: rotorSpeed };
@@ -2753,7 +2810,7 @@ function returnToEarth() {
   }
 
   // Turn helicopter to face the house & tilt forward
-  const angleToHouse = Math.atan2(-3.75 - (-12.5), 0 - (-14.0));
+  const angleToHouse = Math.atan2(-3.75 - targetLandingPos.x, 0 - targetLandingPos.z);
   gsap.to(helicopter.rotation, {
     y: angleToHouse,
     x: 0.25,
@@ -2764,7 +2821,7 @@ function returnToEarth() {
 
   const tl = gsap.timeline({
     onComplete: () => {
-      // Descend & Land on the new flat terrace helipad
+      // Descend & Land on the house helipad
       gsap.to(helicopter.position, {
         y: HEIGHTS.second + 2.24,
         duration: 1.8,
@@ -2809,15 +2866,21 @@ function returnToEarth() {
     }
   });
 
-  // 1. Flight back across space
+  // 1. Takeoff (Vertical lift from skyscraper pad)
+  tl.to(helicopter.position, {
+    y: targetLandingPos.y + 0.8,
+    duration: 1.2,
+    ease: 'power1.inOut'
+  });
+
+  // 2. Flight back across space
   tl.to(helicopter.position, {
     x: -3.75,
     y: HEIGHTS.second + 4.8,
     z: 0,
     duration: 3.8,
-    ease: 'power2.inOut',
-    delay: 1.0
-  });
+    ease: 'power2.inOut'
+  }, '+=0.1');
 
   // Move camera & controls target back to projects view
   const targetView = cameraViews.projects;
@@ -2873,6 +2936,15 @@ function returnToEarth() {
   tl.to(starPoints.material, {
     opacity: isDarkMode ? 1.0 : 0.0,
     duration: 3.2
+  }, '<');
+
+  // Shrink the space city scale back to collapse
+  tl.to(cityGroup.scale, {
+    x: 0.001,
+    y: 0.001,
+    z: 0.001,
+    duration: 3.8,
+    ease: 'power2.inOut'
   }, '<');
 
   // Shrink the Saturn planet scale back to original

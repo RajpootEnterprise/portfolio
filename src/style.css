@@ -850,61 +850,6 @@ body.dark-theme .success-message {
   }
 }
 
-/* Hide default cursor on desktop for fine pointers */
-@media (min-width: 769px) and (pointer: fine) {
-  body, html, a, button, .btn, .nav-btn, .project-card, .theme-toggle, .widget-toggle-btn, .widget-btn, .widget-btn-room, canvas {
-    cursor: none !important;
-  }
-}
-
-/* Custom animated cursors */
-.custom-cursor-dot {
-  position: fixed;
-  width: 8px;
-  height: 8px;
-  background-color: var(--text-highlight);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 10000;
-  transform: translate(-50%, -50%);
-  display: none;
-}
-
-.custom-cursor-ring {
-  position: fixed;
-  width: 32px;
-  height: 32px;
-  border: 1.5px solid var(--text-highlight);
-  border-radius: 50%;
-  pointer-events: none;
-  z-index: 9999;
-  transform: translate(-50%, -50%);
-  transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), 
-              border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              border-style 0.2s ease;
-  display: none;
-  box-shadow: 0 0 10px rgba(224, 122, 95, 0.1);
-}
-
-.custom-cursor-ring.hover {
-  background-color: rgba(224, 122, 95, 0.08);
-  border-color: var(--text-highlight);
-  border-style: dashed;
-  box-shadow: 0 0 15px rgba(224, 122, 95, 0.25);
-  animation: cursor-rotate 15s linear infinite;
-}
-
-@keyframes cursor-rotate {
-  from { transform: translate(-50%, -50%) rotate(0deg); }
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-}
-
-@media (min-width: 769px) and (pointer: fine) {
-  .custom-cursor-dot, .custom-cursor-ring {
-    display: block;
-  }
-}
-
 /* WebGL Canvas Touch Action Optimization */
 #canvas-container canvas {
   touch-action: none !important;
