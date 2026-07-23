@@ -380,6 +380,251 @@
       </div>
     </div>
 
+
+    <!-- MOBILE ANIMATED WEBSITE (shown on screens < 768px instead of 3D canvas) -->
+    <div id="mobile-site" aria-hidden="true">
+      <!-- Particles background canvas -->
+      <canvas id="mobile-particles" aria-hidden="true"></canvas>
+
+      <!-- Floating gradient orbs -->
+      <div class="mob-orb mob-orb-1" aria-hidden="true"></div>
+      <div class="mob-orb mob-orb-2" aria-hidden="true"></div>
+      <div class="mob-orb mob-orb-3" aria-hidden="true"></div>
+
+      <!-- Mobile Header -->
+      <header class="mob-header">
+        <div class="mob-logo">
+          <span class="mob-logo-sym">✦</span>
+          <span>S.S.<span class="mob-accent">RAJPOOT</span>.DEV</span>
+        </div>
+        <button class="mob-menu-btn" id="mob-menu-btn" aria-label="Toggle mobile menu">☰</button>
+      </header>
+
+      <!-- Mobile Slide-in Nav Drawer -->
+      <nav class="mob-nav-drawer" id="mob-nav-drawer" aria-label="Mobile navigation">
+        <button class="mob-nav-link active" data-section="mob-home" id="mob-btn-home">Home</button>
+        <button class="mob-nav-link" data-section="mob-about" id="mob-btn-about">About</button>
+        <button class="mob-nav-link" data-section="mob-timeline" id="mob-btn-timeline">Timeline</button>
+        <button class="mob-nav-link" data-section="mob-projects" id="mob-btn-projects">Projects</button>
+        <button class="mob-nav-link" data-section="mob-skills" id="mob-btn-skills">Skills</button>
+        <button class="mob-nav-link" data-section="mob-contact" id="mob-btn-contact">Contact</button>
+      </nav>
+
+      <!-- Tab indicator bar -->
+      <div class="mob-tab-bar">
+        <button class="mob-tab active" data-section="mob-home">Home</button>
+        <button class="mob-tab" data-section="mob-about">About</button>
+        <button class="mob-tab" data-section="mob-timeline">Timeline</button>
+        <button class="mob-tab" data-section="mob-projects">Projects</button>
+        <button class="mob-tab" data-section="mob-skills">Skills</button>
+        <button class="mob-tab" data-section="mob-contact">Contact</button>
+      </div>
+
+      <!-- Scrollable content area -->
+      <main class="mob-content" id="mob-content">
+
+        <!-- HOME SECTION -->
+        <section class="mob-section active" id="mob-home">
+          <div class="mob-hero">
+            <div class="mob-hero-badge">👋 Welcome to my space</div>
+            <h1 class="mob-hero-title">Siddhant Singh<br/><span class="mob-accent">Rajpoot</span></h1>
+            <div class="mob-typewriter-wrap">
+              <span class="mob-typewriter-prefix">I build&nbsp;</span>
+              <span class="mob-typewriter" id="mob-typewriter"></span>
+              <span class="mob-cursor" aria-hidden="true">|</span>
+            </div>
+            <p class="mob-hero-desc">Software Developer specializing in immersive 3D web applications, real-time graphics, microservices &amp; robust full-stack architectures.</p>
+            <div class="mob-hero-btns">
+              <a href="/Siddhant_Singh_Rajpoot_Resume.pdf" download class="mob-btn mob-btn-primary" id="mob-download-cv">Download CV</a>
+              <button class="mob-btn mob-btn-outline" data-section="mob-projects" id="mob-see-work">See My Work</button>
+            </div>
+            <div class="mob-social-row">
+              <a href="https://linkedin.com/in/siddhantsinghrajpoot" target="_blank" rel="noopener" class="mob-social-link" aria-label="LinkedIn">in</a>
+              <a href="https://github.com/siddhantsinghrajpoot" target="_blank" rel="noopener" class="mob-social-link" aria-label="GitHub">gh</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ABOUT SECTION -->
+        <section class="mob-section" id="mob-about">
+          <div class="mob-section-inner">
+            <div class="mob-section-tag">About Me</div>
+            <h2 class="mob-section-title">Driven by Code<br/>&amp; Design</h2>
+            <p class="mob-section-desc">Associate Software Developer at High Tech Infosystem. I bridge creative visual design with robust server-side execution.</p>
+
+            <div class="mob-card">
+              <h3 class="mob-card-title">🎓 Education</h3>
+              <div class="mob-info-item">
+                <strong>Baderia Global Institute of Engineering</strong>
+                <span>B.Tech // CGPA: 8.5</span>
+              </div>
+              <div class="mob-info-item">
+                <strong>AWS Certified Cloud Practitioner</strong>
+                <span>Amazon Web Services</span>
+              </div>
+              <div class="mob-info-item">
+                <strong>5G Competence Training (TSSC)</strong>
+                <span>Networking &amp; Signaling</span>
+              </div>
+            </div>
+
+            <div class="mob-card" style="margin-top: 16px;">
+              <h3 class="mob-card-title">🏆 Achievements</h3>
+              <div class="mob-info-item">✦ Smart India Hackathon (SIH) Participant</div>
+              <div class="mob-info-item">✦ Odoo Hackathon Participant</div>
+              <div class="mob-info-item">✦ Best Judge Award — College Tech Fest</div>
+            </div>
+
+            <a class="mob-btn mob-btn-primary" href="/Siddhant_Singh_Rajpoot_Resume.pdf" download style="margin-top:20px; display:inline-block">Download Resume</a>
+          </div>
+        </section>
+
+        <!-- TIMELINE SECTION -->
+        <section class="mob-section" id="mob-timeline">
+          <div class="mob-section-inner">
+            <div class="mob-section-tag">My Journey</div>
+            <h2 class="mob-section-title">Professional<br/>Timeline</h2>
+
+            <div class="mob-timeline">
+              <div class="mob-timeline-item">
+                <div class="mob-tl-dot"></div>
+                <div class="mob-tl-content">
+                  <div class="mob-tl-period">June 2026 – Present</div>
+                  <h4 class="mob-tl-title">Associate Software Developer</h4>
+                  <div class="mob-tl-company">High Tech Infosystem</div>
+                  <p class="mob-tl-desc">Own development of the billing microservice for BroadNet.ai. Kafka, Kubernetes, Docker-based microservices architecture.</p>
+                </div>
+              </div>
+
+              <div class="mob-timeline-item">
+                <div class="mob-tl-dot"></div>
+                <div class="mob-tl-content">
+                  <div class="mob-tl-period">Feb 2026 – May 2026</div>
+                  <h4 class="mob-tl-title">Software Development Intern</h4>
+                  <div class="mob-tl-company">High Tech Infosystem</div>
+                  <p class="mob-tl-desc">Contributed to live BroadNet.ai production codebase. Integrated billing microservices and payment gateways.</p>
+                </div>
+              </div>
+
+              <div class="mob-timeline-item">
+                <div class="mob-tl-dot"></div>
+                <div class="mob-tl-content">
+                  <div class="mob-tl-period">Feb 2025 – June 2025</div>
+                  <h4 class="mob-tl-title">GMB Developer</h4>
+                  <div class="mob-tl-company">MBG Cards</div>
+                  <p class="mob-tl-desc">Built microservices, REST APIs, and Stripe payment integrations for card production environments.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROJECTS SECTION -->
+        <section class="mob-section" id="mob-projects">
+          <div class="mob-section-inner">
+            <div class="mob-section-tag">Creative Portfolio</div>
+            <h2 class="mob-section-title">Selected<br/>Creations</h2>
+
+            <div class="mob-project-card">
+              <div class="mob-proj-meta">01 / MICROSERVICE [LIVE]</div>
+              <h3 class="mob-proj-title">BroadNet.ai Billing Service</h3>
+              <p class="mob-proj-desc">Production-grade billing microservice with Stripe end-to-end prepaid &amp; postpaid billing workflows.</p>
+              <div class="mob-proj-tags">
+                <span>Java</span><span>Spring Boot</span><span>Kafka</span><span>Docker</span>
+              </div>
+            </div>
+
+            <div class="mob-project-card">
+              <div class="mob-proj-meta">02 / CORE JAVA &amp; WEB</div>
+              <h3 class="mob-proj-title">E-Learning Platform</h3>
+              <p class="mob-proj-desc">Role-based e-learning dashboard with student/mentor access hierarchies and video learning paths.</p>
+              <div class="mob-proj-tags">
+                <span>Core Java</span><span>Servlets</span><span>JSP</span><span>MySQL</span>
+              </div>
+            </div>
+
+            <div class="mob-project-card">
+              <div class="mob-proj-meta">03 / AWS CLOUD &amp; R&amp;D</div>
+              <h3 class="mob-proj-title">AWS Cloud Systems &amp; 5G</h3>
+              <p class="mob-proj-desc">Cloud architecture certification combined with 5G signaling &amp; networking protocol research.</p>
+              <div class="mob-proj-tags">
+                <span>AWS</span><span>5G Systems</span><span>Networking</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- SKILLS SECTION -->
+        <section class="mob-section" id="mob-skills">
+          <div class="mob-section-inner">
+            <div class="mob-section-tag">Technical Stack</div>
+            <h2 class="mob-section-title">Expertise<br/>Areas</h2>
+
+            <div class="mob-card">
+              <h3 class="mob-card-title">Languages &amp; Frameworks</h3>
+              <div class="mob-skills-grid">
+                <span class="mob-skill-pill">Java</span>
+                <span class="mob-skill-pill">DSA</span>
+                <span class="mob-skill-pill">Spring Boot</span>
+                <span class="mob-skill-pill">REST APIs</span>
+                <span class="mob-skill-pill">JavaScript / ES6</span>
+                <span class="mob-skill-pill">HTML5 / CSS3</span>
+                <span class="mob-skill-pill">Three.js</span>
+                <span class="mob-skill-pill">Bootstrap</span>
+              </div>
+            </div>
+
+            <div class="mob-card" style="margin-top:16px">
+              <h3 class="mob-card-title">Tools, Platforms &amp; Concepts</h3>
+              <div class="mob-skills-grid">
+                <span class="mob-skill-pill">Docker</span>
+                <span class="mob-skill-pill">Kubernetes</span>
+                <span class="mob-skill-pill">Apache Kafka</span>
+                <span class="mob-skill-pill">CI/CD</span>
+                <span class="mob-skill-pill">AWS</span>
+                <span class="mob-skill-pill">MySQL</span>
+                <span class="mob-skill-pill">Microservices</span>
+                <span class="mob-skill-pill">Hadoop</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- CONTACT SECTION -->
+        <section class="mob-section" id="mob-contact">
+          <div class="mob-section-inner">
+            <div class="mob-section-tag">Get in Touch</div>
+            <h2 class="mob-section-title">Drop a<br/>Message</h2>
+            <p class="mob-section-desc">Have an interesting project or just want to connect? Write me a message below.</p>
+
+            <form class="mob-contact-form" id="mob-contact-form" onsubmit="return false;">
+              <div class="mob-form-group">
+                <label for="mob-form-name">Your Name</label>
+                <input type="text" id="mob-form-name" placeholder="John Doe" required />
+              </div>
+              <div class="mob-form-group">
+                <label for="mob-form-email">Email Address</label>
+                <input type="email" id="mob-form-email" placeholder="john@example.com" required />
+              </div>
+              <div class="mob-form-group">
+                <label for="mob-form-message">Message</label>
+                <textarea id="mob-form-message" rows="4" placeholder="Tell me about your project..." required></textarea>
+              </div>
+              <button type="submit" class="mob-btn mob-btn-primary" id="mob-form-submit" style="width:100%">Send Message ✉</button>
+              <div class="mob-form-success" id="mob-form-success">✓ Message sent successfully!</div>
+            </form>
+
+            <div class="mob-contact-links">
+              <a href="mailto:siddhantsinghrajpoot@email.com" class="mob-contact-link">📧 Email me directly</a>
+              <a href="https://linkedin.com/in/siddhantsinghrajpoot" target="_blank" rel="noopener" class="mob-contact-link">💼 LinkedIn Profile</a>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+    <!-- END MOBILE SITE -->
+
     <!-- Main JS entrypoint -->
     <script type="module" src="/src/main.ts"></script>
   </body>
