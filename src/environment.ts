@@ -847,31 +847,29 @@ export function createCelestialEnvironment() {
   grassPlain.receiveShadow = true;
   state.scene.add(grassPlain);
 
-  // 2. Procedural pine forest trees around the house
-  function addTree(x: number, z: number) {
-    const tree = new THREE.Group();
-    tree.position.set(x, -0.05, z);
+  // 2. Procedural pine forest trees around the house (InstancedMesh for high performance)
+  const treeCount = 55;
+  const trunkGeo = new THREE.CylinderGeometry(0.12, 0.16, 1.2, 8);
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.85 });
+  const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, treeCount);
+  trunkInst.castShadow = true;
+  trunkInst.receiveShadow = true;
 
-    const trunk = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.12, 0.16, 1.2, 8),
-      new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.85 })
-    );
-    trunk.position.y = 0.6;
-    trunk.castShadow = true;
-    tree.add(trunk);
+  const coneGeos = [
+    new THREE.ConeGeometry(0.55, 1.0, 8),
+    new THREE.ConeGeometry(0.43, 1.0, 8),
+    new THREE.ConeGeometry(0.31, 1.0, 8)
+  ];
+  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.9 });
+  const coneInsts = coneGeos.map(geo => {
+    const inst = new THREE.InstancedMesh(geo, leavesMat, treeCount);
+    inst.castShadow = true;
+    inst.receiveShadow = true;
+    return inst;
+  });
 
-    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.9 });
-    for (let i = 0; i < 3; i++) {
-      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.55 - i * 0.12, 1.0, 8), leavesMat);
-      cone.position.y = 1.2 + i * 0.55;
-      cone.castShadow = true;
-      tree.add(cone);
-    }
-    state.scene.add(tree);
-  }
-
-  // Scatter 55 trees outside house, track loop, and airport runway
-  for (let i = 0; i < 55; i++) {
+  const treeDummy = new THREE.Object3D();
+  for (let i = 0; i < treeCount; i++) {
     let x = 0, z = 0;
     while (true) {
       x = (Math.random() - 0.5) * 64;
@@ -884,8 +882,24 @@ export function createCelestialEnvironment() {
         break;
       }
     }
-    addTree(x, z);
+    
+    // Position trunk (half-height offset = 0.6 since Cylinder origin is at center)
+    treeDummy.position.set(x, 0.55, z);
+    treeDummy.rotation.set(0, 0, 0);
+    treeDummy.scale.set(1, 1, 1);
+    treeDummy.updateMatrix();
+    trunkInst.setMatrixAt(i, treeDummy.matrix);
+
+    // Position leaf cones
+    for (let j = 0; j < 3; j++) {
+      treeDummy.position.set(x, 1.2 + j * 0.55, z);
+      treeDummy.updateMatrix();
+      coneInsts[j].setMatrixAt(i, treeDummy.matrix);
+    }
   }
+
+  state.scene.add(trunkInst);
+  coneInsts.forEach(inst => state.scene.add(inst));
 
   // 3. Airport Terminal and Hangar Runway
   const runway = new THREE.Mesh(
@@ -894,6 +908,8 @@ export function createCelestialEnvironment() {
   );
   runway.position.set(-20, -0.04, 0);
   runway.receiveShadow = true;
+  runway.userData = { targetFocus: new THREE.Vector3(-20, -0.04, 0), focusName: 'airport' };
+  state.interactiveObjects.push(runway);
   state.scene.add(runway);
 
   for (let offset = -6.0; offset <= 6.0; offset += 3.0) {
@@ -1050,15 +1066,22 @@ export function createCelestialEnvironment() {
 
   const tieMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
   const tiesCount = 120;
+  const tieGeo = new THREE.BoxGeometry(0.5, 0.015, 0.12);
+  const tieInst = new THREE.InstancedMesh(tieGeo, tieMat, tiesCount);
+  const tieDummy = new THREE.Object3D();
+  
   for (let i = 0; i < tiesCount; i++) {
     const angle = (i / tiesCount) * Math.PI * 2;
     const tx = Math.cos(angle) * trackRadius;
     const tz = Math.sin(angle) * trackRadius + trackCenterZ;
-    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.015, 0.12), tieMat);
-    tie.position.set(tx, -0.045, tz);
-    tie.rotation.y = -angle;
-    railwayGroup.add(tie);
+    
+    tieDummy.position.set(tx, -0.045, tz);
+    tieDummy.rotation.set(0, -angle, 0);
+    tieDummy.scale.set(1, 1, 1);
+    tieDummy.updateMatrix();
+    tieInst.setMatrixAt(i, tieDummy.matrix);
   }
+  railwayGroup.add(tieInst);
 
   const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
   const railL = new THREE.Mesh(new THREE.TorusGeometry(trackRadius - 0.15, 0.012, 6, 64), railMat);
@@ -1075,6 +1098,8 @@ export function createCelestialEnvironment() {
   station.position.set(0, -0.04, -28.0);
   const platform = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, 0.8), new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 }));
   platform.position.y = 0.04;
+  platform.userData = { targetFocus: new THREE.Vector3(0, -0.04, -28), focusName: 'railway' };
+  state.interactiveObjects.push(platform);
   station.add(platform);
 
   const colGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.88);

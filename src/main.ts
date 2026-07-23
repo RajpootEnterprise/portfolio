@@ -1019,13 +1019,79 @@ function onCanvasClick(event: MouseEvent) {
 
   if (intersects.length > 0) {
     let obj: THREE.Object3D | null = intersects[0].object;
+    let handled = false;
+    
     while (obj) {
+      if (obj.userData && obj.userData.targetFocus) {
+        handled = true;
+        const targetPos = obj.userData.targetFocus;
+        state.isTransitioning = true;
+        state.controls.autoRotate = false;
+        
+        gsap.to(state.controls.target, {
+          x: targetPos.x,
+          y: targetPos.y,
+          z: targetPos.z,
+          duration: 1.5,
+          ease: 'power2.out',
+          onUpdate: () => state.controls.update()
+        });
+
+        const camOffset = obj.userData.focusName === 'airport'
+          ? new THREE.Vector3(-20 + 8.5, 4.0, 9.5)
+          : new THREE.Vector3(8.5, 4.0, -28 + 9.5);
+
+        gsap.to(state.camera.position, {
+          x: camOffset.x,
+          y: camOffset.y,
+          z: camOffset.z,
+          duration: 1.5,
+          ease: 'power2.out',
+          onComplete: () => {
+            state.isTransitioning = false;
+            state.controls.minDistance = 2.0;
+            state.controls.maxDistance = 85.0;
+            state.controls.update();
+          }
+        });
+        break;
+      }
+
       if (obj.userData && obj.userData.roomName) {
+        handled = true;
         const roomName = obj.userData.roomName;
         navigateToRoom(roomName);
         break;
       }
       obj = obj.parent;
+    }
+
+    if (!handled) {
+      const houseCenter = new THREE.Vector3(0, 3.2, 0);
+      if (state.controls.target.distanceTo(houseCenter) > 8.0) {
+        state.isTransitioning = true;
+        gsap.to(state.controls.target, {
+          x: houseCenter.x,
+          y: houseCenter.y,
+          z: houseCenter.z,
+          duration: 1.5,
+          ease: 'power2.out',
+          onUpdate: () => state.controls.update()
+        });
+        gsap.to(state.camera.position, {
+          x: -16.5,
+          y: 12.0,
+          z: 19.5,
+          duration: 1.5,
+          ease: 'power2.out',
+          onComplete: () => {
+            state.isTransitioning = false;
+            state.controls.minDistance = 5.0;
+            state.controls.maxDistance = 85.0;
+            state.controls.update();
+          }
+        });
+      }
     }
   }
 }
@@ -1041,7 +1107,7 @@ function onCanvasMouseMove(event: MouseEvent) {
   if (intersects.length > 0) {
     let obj: THREE.Object3D | null = intersects[0].object;
     while (obj) {
-      if (obj.userData && obj.userData.roomName) {
+      if (obj.userData && (obj.userData.roomName || obj.userData.targetFocus)) {
         foundHoverable = true;
         break;
       }
