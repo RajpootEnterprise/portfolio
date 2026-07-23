@@ -75,5 +75,18 @@ export const state = {
   currentRoom: 'overview',
   isTransitioning: false,
   isDarkMode: false,
-  idleTimer: undefined as any
+  idleTimer: undefined as any,
+  
+  // Airplane and train animations
+  planeMesh1: null as unknown as THREE.Group,
+  planeMesh2: null as unknown as THREE.Group,
+  trainGroup: null as unknown as THREE.Group,
+  trainCarriages: [] as THREE.Group[],
+  trainAngle: 0,
+  trainSpeed: 0.22,
+  trainState: 'running' as 'running' | 'decelerating' | 'stopped' | 'accelerating',
+  trainStopTimer: 0,
+  
+  // Audio synthesizer state
+  synthAudio: null as any
 };

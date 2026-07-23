@@ -17,6 +17,224 @@ import {
 } from './environment';
 
 // ----------------------------------------------------
+// Audio Synthesizer Engine
+// ----------------------------------------------------
+class CyberAudioSynth {
+  ctx: AudioContext | null = null;
+  jetFilter: BiquadFilterNode | null = null;
+  jetGain: GainNode | null = null;
+  trainGain: GainNode | null = null;
+  chugInterval: any = null;
+  chugSpeed = 250;
+  hornGain: GainNode | null = null;
+
+  init() {
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      this.ctx = new AudioCtx();
+
+      // 1. JET ENGINE SYNTHESIS (White Noise lowpass sweeps)
+      const bufferSize = 2 * this.ctx.sampleRate;
+      const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const output = noiseBuffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        output[i] = Math.random() * 2 - 1;
+      }
+
+      const noiseSource = this.ctx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+      noiseSource.loop = true;
+
+      this.jetFilter = this.ctx.createBiquadFilter();
+      this.jetFilter.type = 'lowpass';
+      this.jetFilter.frequency.value = 220;
+      this.jetFilter.Q.value = 3.0;
+
+      this.jetGain = this.ctx.createGain();
+      this.jetGain.gain.value = 0.0;
+
+      noiseSource.connect(this.jetFilter);
+      this.jetFilter.connect(this.jetGain);
+      this.jetGain.connect(this.ctx.destination);
+      noiseSource.start(0);
+
+      // 2. TRAIN CHUG SYNTHESIS
+      this.trainGain = this.ctx.createGain();
+      this.trainGain.gain.value = 0.0;
+      this.trainGain.connect(this.ctx.destination);
+
+      this.startChugging();
+
+      // 3. TRAIN HORN SYNTHESIS
+      this.hornGain = this.ctx.createGain();
+      this.hornGain.gain.value = 0.0;
+      this.hornGain.connect(this.ctx.destination);
+
+    } catch (e) {
+      console.warn("Failed to init Web Audio synth:", e);
+    }
+  }
+
+  startChugging() {
+    if (this.chugInterval) clearInterval(this.chugInterval);
+
+    const triggerChug = () => {
+      if (!this.ctx || this.ctx.state === 'suspended' || !state.trainGroup) {
+        this.chugInterval = setTimeout(triggerChug, 250);
+        return;
+      }
+
+      let playGain = 0.22;
+      if (state.trainState === 'stopped') {
+        playGain = 0.0;
+      } else if (state.trainState === 'decelerating') {
+        playGain = 0.06;
+      }
+
+      if (playGain > 0.0) {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.value = 50;
+
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 160;
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.trainGain!);
+
+        gain.gain.setValueAtTime(0.01, now);
+        gain.gain.exponentialRampToValueAtTime(playGain, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+        osc.start(now);
+        osc.stop(now + 0.14);
+
+        const bufferSize = this.ctx.sampleRate * 0.07;
+        const noiseBuffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+        const chData = noiseBuffer.getChannelData(0);
+        for (let i = 0; i < bufferSize; i++) {
+          chData[i] = Math.random() * 2 - 1;
+        }
+
+        const noise = this.ctx.createBufferSource();
+        noise.buffer = noiseBuffer;
+
+        const noiseFilter = this.ctx.createBiquadFilter();
+        noiseFilter.type = 'bandpass';
+        noiseFilter.frequency.value = 650;
+
+        const noiseGain = this.ctx.createGain();
+        noise.connect(noiseFilter);
+        noiseFilter.connect(noiseGain);
+        noiseGain.connect(this.trainGain!);
+
+        noiseGain.gain.setValueAtTime(0.01, now);
+        noiseGain.gain.exponentialRampToValueAtTime(playGain * 0.4, now + 0.01);
+        noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+        noise.start(now);
+        noise.stop(now + 0.06);
+      }
+
+      let interval = 450;
+      if (state.trainState === 'decelerating') {
+        interval = 700;
+      } else if (state.trainState === 'accelerating') {
+        interval = 320;
+      } else if (state.trainState === 'running') {
+        interval = 260;
+      }
+
+      this.chugInterval = setTimeout(triggerChug, interval);
+    };
+
+    this.chugInterval = setTimeout(triggerChug, this.chugSpeed);
+  }
+
+  playHorn() {
+    if (!this.ctx || this.ctx.state === 'suspended') return;
+    const now = this.ctx.currentTime;
+
+    const osc1 = this.ctx.createOscillator();
+    const osc2 = this.ctx.createOscillator();
+    const osc3 = this.ctx.createOscillator();
+
+    osc1.frequency.value = 390;
+    osc2.frequency.value = 425;
+    osc3.frequency.value = 295;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 900;
+
+    const gain = this.ctx.createGain();
+
+    osc1.connect(filter);
+    osc2.connect(filter);
+    osc3.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.hornGain!);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.exponentialRampToValueAtTime(0.35, now + 0.1);
+    gain.gain.setValueAtTime(0.35, now + 0.9);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc3.start(now);
+
+    osc1.stop(now + 1.4);
+    osc2.stop(now + 1.4);
+    osc3.stop(now + 1.4);
+  }
+
+  updateVolumes(camera: THREE.Camera) {
+    if (!this.ctx || this.ctx.state === 'suspended') return;
+
+    if (state.planeMesh1 && this.jetGain && this.jetFilter) {
+      const planePos = new THREE.Vector3();
+      state.planeMesh1.getWorldPosition(planePos);
+      const dist = camera.position.distanceTo(planePos);
+
+      let vol = 1.0 - Math.min(1.0, dist / 85.0);
+      vol = Math.pow(vol, 2.0) * 0.18;
+
+      this.jetGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.15);
+
+      const freq = 150 + vol * 2800;
+      this.jetFilter.frequency.setTargetAtTime(freq, this.ctx.currentTime, 0.1);
+    }
+
+    if (state.trainGroup && this.trainGain) {
+      const trainPos = new THREE.Vector3();
+      state.trainGroup.getWorldPosition(trainPos);
+      const dist = camera.position.distanceTo(trainPos);
+
+      let vol = 1.0 - Math.min(1.0, dist / 80.0);
+      vol = Math.pow(vol, 2.0) * 0.45;
+
+      this.trainGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.2);
+    }
+
+    if (state.trainGroup && this.hornGain) {
+      const trainPos = new THREE.Vector3();
+      state.trainGroup.getWorldPosition(trainPos);
+      const dist = camera.position.distanceTo(trainPos);
+
+      let vol = 1.0 - Math.min(1.0, dist / 80.0);
+      vol = Math.pow(vol, 2.0) * 0.55;
+
+      this.hornGain.gain.setTargetAtTime(vol, this.ctx.currentTime, 0.1);
+    }
+  }
+}
+
+// ----------------------------------------------------
 // Initialization
 // ----------------------------------------------------
 function init() {
@@ -28,9 +246,11 @@ function init() {
   state.scene.background = new THREE.Color(0xfaf8f5);
 
   // Camera - INITIAL START ZOOMED OUT (Framing the entire 3-story house)
+  const isMobileInit = window.innerWidth < 768;
+  const initCamMult = isMobileInit ? 1.65 : 1.0;
   const startFov = (window.innerWidth / window.innerHeight) < 1.0 ? 56 : 42;
   state.camera = new THREE.PerspectiveCamera(startFov, window.innerWidth / window.innerHeight, 0.1, 120);
-  state.camera.position.set(-16.5, 12.0, 19.5); // Zoomed out view
+  state.camera.position.set(-16.5 * initCamMult, 12.0 * initCamMult, 19.5 * initCamMult); // Zoomed out view
 
   // Renderer
   state.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -45,7 +265,7 @@ function init() {
   state.controls = new OrbitControls(state.camera, state.renderer.domElement);
   state.controls.enableDamping = true;
   state.controls.dampingFactor = 0.05;
-  state.controls.target.set(0.0, 2.2, 0.0); // Center on middle floor crossroads
+  state.controls.target.set(0.0, 3.2, 0.0); // Center on middle floor crossroads
 
   // Enable 1-finger rotate on mobile touch controls explicitly
   state.controls.touches = {
@@ -54,7 +274,7 @@ function init() {
   };
   
   // Angle limits (constrain orbit views)
-  state.controls.maxPolarAngle = Math.PI / 2 - 0.08;
+  state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
   state.controls.minDistance = 5;
   state.controls.maxDistance = 85;
 
@@ -122,6 +342,27 @@ function init() {
   // Start Idle Inactivity Timer (maintains autoRotate off)
   resetIdleTimer();
 
+  // Instantiate and trigger Web Audio synthesizer automatically on first user click/touch
+  state.synthAudio = new CyberAudioSynth();
+
+  const startAudio = () => {
+    if (state.synthAudio && !state.synthAudio.ctx) {
+      state.synthAudio.init();
+    }
+    if (state.synthAudio && state.synthAudio.ctx && state.synthAudio.ctx.state === 'suspended') {
+      state.synthAudio.ctx.resume();
+    }
+    window.removeEventListener('click', startAudio);
+    window.removeEventListener('touchstart', startAudio);
+    window.removeEventListener('pointerdown', startAudio);
+    window.removeEventListener('keydown', startAudio);
+  };
+
+  window.addEventListener('click', startAudio);
+  window.addEventListener('touchstart', startAudio);
+  window.addEventListener('pointerdown', startAudio);
+  window.addEventListener('keydown', startAudio);
+
   // Run Render Loop
   animate(0);
 }
@@ -175,12 +416,14 @@ function navigateToRoom(targetRoomName: string) {
   const currentPhi = Math.acos(relY / r);
 
   const targetView = cameraViews[targetRoomName];
-  
-  const defaultRadius = Math.sqrt(
+  const mobileMultiplier = (window.innerWidth < 768) ? 1.65 : 1.0;
+
+  const baseRadius = Math.sqrt(
     Math.pow(targetView.position.x - targetView.target.x, 2) +
     Math.pow(targetView.position.y - targetView.target.y, 2) +
     Math.pow(targetView.position.z - targetView.target.z, 2)
   );
+  const defaultRadius = baseRadius * mobileMultiplier;
 
   // Compute new relative coordinates preserving theta and phi
   const newRelX = defaultRadius * Math.sin(currentTheta) * Math.sin(currentPhi);
@@ -398,7 +641,7 @@ function exitRoomToOverview() {
       // Restore overview camera constraints
       state.controls.minDistance = 5;
       state.controls.maxDistance = 85;
-      state.controls.maxPolarAngle = Math.PI / 2 - 0.08;
+      state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
       state.controls.minPolarAngle = 0;
       state.controls.update();
     }
@@ -726,7 +969,7 @@ function setupEvents() {
 
       state.controls.minDistance = 5;
       state.controls.maxDistance = 85;
-      state.controls.maxPolarAngle = Math.PI / 2 - 0.08;
+      state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
       state.controls.minPolarAngle = 0;
 
       gsap.to(state.camera.position, { x: -16.5, y: 12.0, z: 19.5, duration: 1.5, ease: 'power2.inOut' });
@@ -935,6 +1178,11 @@ function animate(time: number) {
     state.flagMesh.rotation.z = Math.sin(seconds * 2.5) * 0.04;
   }
 
+  // Rotate the realistic moon
+  if (state.moonGroup) {
+    state.moonGroup.rotation.y += 0.0015;
+  }
+
   // Hover and orbit UFOs in celestial space with flashing perimeter lights
   state.ufoList.forEach(ufo => {
     ufo.rotation.y += 0.03;
@@ -965,6 +1213,135 @@ function animate(time: number) {
     ship.position.set(sx, sy, sz);
     ship.lookAt(nx, ny, nz);
   });
+
+  // 1. Airplane 1 (Landing and Takeoff loop on runway)
+  if (state.planeMesh1) {
+    const pTime = seconds * 0.35; 
+    const phase = Math.floor(pTime % 4);
+    const frac = pTime % 1;
+    const runwayX = -20;
+    const runwayY = -0.04;
+
+    if (phase === 0) {
+      // Descent
+      const tz = 16 - 10 * frac;
+      const ty = 8 - 8 * frac;
+      state.planeMesh1.position.set(runwayX, ty + runwayY, tz);
+      state.planeMesh1.lookAt(runwayX, runwayY, 6);
+    } else if (phase === 1) {
+      // Roll
+      const tz = 6 - 12 * frac;
+      state.planeMesh1.position.set(runwayX, runwayY, tz);
+      state.planeMesh1.lookAt(runwayX, runwayY, -7);
+    } else if (phase === 2) {
+      // Climb
+      const tz = -6 - 10 * frac;
+      const ty = 0 + 8 * frac;
+      state.planeMesh1.position.set(runwayX, ty + runwayY, tz);
+      state.planeMesh1.lookAt(runwayX, ty + runwayY + 1.0, tz - 2.0);
+    } else {
+      // Orbit sky
+      const angle = Math.PI + frac * Math.PI;
+      const radius = 21;
+      const cx = runwayX + Math.sin(angle) * radius;
+      const cz = -5 + Math.cos(angle) * radius;
+      state.planeMesh1.position.set(cx, 8 + runwayY, cz);
+      
+      const nextAngle = angle + 0.02;
+      const nx = runwayX + Math.sin(nextAngle) * radius;
+      const nz = -5 + Math.cos(nextAngle) * radius;
+      state.planeMesh1.lookAt(nx, 8 + runwayY, nz);
+    }
+  }
+
+  // 2. Airplane 2 (Sky Cruiser)
+  if (state.planeMesh2) {
+    const angle = seconds * 0.25;
+    const radius = 26;
+    const px = Math.cos(angle) * radius;
+    const pz = Math.sin(angle) * radius - 5;
+    const py = 15;
+    state.planeMesh2.position.set(px, py, pz);
+    
+    const nextAngle = angle + 0.02;
+    const nx = Math.cos(nextAngle) * radius;
+    const nz = Math.sin(nextAngle) * radius - 5;
+    state.planeMesh2.lookAt(nx, py, nz);
+  }
+
+  // 3. Train Circular Loop Movement & Railway Station Platform Stop
+  if (state.trainGroup && state.trainCarriages) {
+    const stationTheta = 1.5 * Math.PI; 
+    const targetSpeed = 0.008; 
+    
+    state.trainAngle = state.trainAngle % (Math.PI * 2);
+    if (state.trainAngle < 0) state.trainAngle += Math.PI * 2;
+    
+    const diff = Math.abs(state.trainAngle - stationTheta);
+    
+    if (state.trainState === 'running') {
+      if (diff < 0.8 && state.trainAngle < stationTheta) {
+        state.trainState = 'decelerating';
+      }
+    } else if (state.trainState === 'decelerating') {
+      const tSpeed = Math.max(0.0004, (diff / 0.8) * targetSpeed);
+      state.trainAngle += tSpeed;
+      if (state.trainAngle >= stationTheta || Math.abs(state.trainAngle - stationTheta) < 0.015) {
+        state.trainAngle = stationTheta;
+        state.trainState = 'stopped';
+        state.trainStopTimer = time; 
+      }
+    } else if (state.trainState === 'stopped') {
+      if (time - state.trainStopTimer > 3000) {
+        state.trainState = 'accelerating';
+        state.trainStopTimer = time;
+        if (state.synthAudio) {
+          state.synthAudio.playHorn();
+        }
+      }
+    } else if (state.trainState === 'accelerating') {
+      const accelFrac = Math.min(1.0, (time - state.trainStopTimer) / 2500);
+      state.trainAngle += accelFrac * targetSpeed;
+      if (accelFrac >= 1.0) {
+        state.trainState = 'running';
+      }
+    }
+    
+    if (state.trainState !== 'stopped') {
+      if (state.trainState === 'running') {
+        state.trainAngle += targetSpeed;
+      }
+    }
+    
+    const trackRadius = 22.0;
+    const trackCenterZ = -5.0;
+    
+    const tx = Math.cos(state.trainAngle) * trackRadius;
+    const tz = Math.sin(state.trainAngle) * trackRadius + trackCenterZ;
+    state.trainGroup.position.set(tx, -0.04, tz);
+    
+    const nextT = state.trainAngle + 0.05;
+    const ntx = Math.cos(nextT) * trackRadius;
+    const ntz = Math.sin(nextT) * trackRadius + trackCenterZ;
+    state.trainGroup.lookAt(ntx, -0.04, ntz);
+    
+    state.trainCarriages.forEach((carriage, idx) => {
+      const cAngle = state.trainAngle - (idx + 1) * 0.16;
+      const cx = Math.cos(cAngle) * trackRadius;
+      const cz = Math.sin(cAngle) * trackRadius + trackCenterZ;
+      carriage.position.set(cx, -0.04, cz);
+      
+      const cNext = cAngle + 0.05;
+      const cnx = Math.cos(cNext) * trackRadius;
+      const cnz = Math.sin(cNext) * trackRadius + trackCenterZ;
+      carriage.lookAt(cnx, -0.04, cnz);
+    });
+  }
+
+  // 4. Update Synthesized audio volumes and swept filters
+  if (state.synthAudio) {
+    state.synthAudio.updateVolumes(state.camera);
+  }
 
   // Render Scene
   state.renderer.render(state.scene, state.camera);
@@ -1244,10 +1621,13 @@ function flyToPlanet(projectId: number) {
     ease: 'power2.inOut'
   }, '+=0.1');
 
+  const isMobile = window.innerWidth < 768;
+  const mobileMultiplier = isMobile ? 1.65 : 1.0;
+
   tl.to(state.camera.position, {
-    x: targetLandingPos.x + 3.8,
-    y: targetLandingPos.y + 2.0,
-    z: targetLandingPos.z + 4.2,
+    x: targetLandingPos.x + 3.8 * mobileMultiplier,
+    y: targetLandingPos.y + 2.0 * mobileMultiplier,
+    z: targetLandingPos.z + 4.2 * mobileMultiplier,
     duration: 3.5,
     ease: 'power2.inOut'
   }, '<');
@@ -1482,11 +1862,17 @@ function returnToEarth() {
     ease: 'power2.inOut'
   }, '+=0.1');
 
-  const targetView = cameraViews.projects;
+  const targetView = cameraViews.home;
+  const isMobile = window.innerWidth < 768;
+  const mobileMultiplier = isMobile ? 1.65 : 1.0;
+
+  const destRel = new THREE.Vector3().subVectors(targetView.position, targetView.target).multiplyScalar(mobileMultiplier);
+  const destCamPos = new THREE.Vector3().addVectors(targetView.target, destRel);
+
   tl.to(state.camera.position, {
-    x: targetView.position.x,
-    y: targetView.position.y,
-    z: targetView.position.z,
+    x: destCamPos.x,
+    y: destCamPos.y,
+    z: destCamPos.z,
     duration: 3.8,
     ease: 'power2.inOut'
   }, '<');
@@ -1563,7 +1949,7 @@ function returnToEarth() {
     onComplete: () => {
       // Re-enable inspection bounds after return to earth completes
       state.controls.minDistance = 3.0;
-      state.controls.maxDistance = 12.0;
+      state.controls.maxDistance = 21.0;
       state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
       state.controls.minPolarAngle = Math.PI / 2 - 0.55;
       state.controls.update();

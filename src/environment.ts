@@ -466,17 +466,70 @@ export function createCelestialEnvironment() {
   state.sunGroup.position.set(22, 18, -18);
   state.scene.add(state.sunGroup);
 
-  // 2. Moon Group
+  // 2. Moon Group (With detailed craters canvas texture)
+  const createMoonTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Moon base gray
+    ctx.fillStyle = '#d1d5db';
+    ctx.fillRect(0, 0, 256, 128);
+    
+    // Draw dark mare (volcanic basins)
+    ctx.fillStyle = '#9ca3af';
+    const maria = [
+      { x: 60, y: 40, r: 24 },
+      { x: 100, y: 70, r: 32 },
+      { x: 160, y: 50, r: 18 },
+      { x: 80, y: 90, r: 15 },
+      { x: 200, y: 80, r: 20 }
+    ];
+    maria.forEach(m => {
+      ctx.beginPath();
+      ctx.arc(m.x, m.y, m.r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    
+    // Draw crater overlays
+    ctx.strokeStyle = '#f3f4f6';
+    ctx.lineWidth = 1.0;
+    for (let i = 0; i < 20; i++) {
+      const cx = Math.random() * 256;
+      const cy = Math.random() * 128;
+      const cr = 2 + Math.random() * 8;
+      
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+      ctx.stroke();
+      
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(cx, cy, cr * 0.25, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    return new THREE.CanvasTexture(canvas);
+  };
+
   state.moonGroup = new THREE.Group();
+  const moonTexture = createMoonTexture();
   const moonMesh = new THREE.Mesh(
-    new THREE.SphereGeometry(0.7, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xe6e8ea })
+    new THREE.SphereGeometry(0.7, 32, 32),
+    new THREE.MeshStandardMaterial({
+      map: moonTexture,
+      roughness: 0.95,
+      metalness: 0.05,
+      emissive: new THREE.Color(0x8a9ec4),
+      emissiveIntensity: 0.15
+    })
   );
   state.moonGroup.add(moonMesh);
   
   const moonHalo = new THREE.Mesh(
     new THREE.RingGeometry(0.8, 1.1, 16),
-    new THREE.MeshBasicMaterial({ color: 0xa8dadc, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
+    new THREE.MeshBasicMaterial({ color: 0xa8dadc, transparent: true, opacity: 0.25, side: THREE.DoubleSide })
   );
   state.moonGroup.add(moonHalo);
   state.moonGroup.position.set(-20, -8, 20);
@@ -702,4 +755,453 @@ export function createCelestialEnvironment() {
   addSpaceship(18, 16, -18, 0xef4444, 0.8);   // Red Fighter
   addSpaceship(10, 15, -20, 0x3b82f6, 0.95);  // Blue Explorer
   addSpaceship(-14, 18, -20, 0x10b981, 0.75); // Green Scout
+
+  // ----------------------------------------------------
+  // Realistic Planet (R=160) & Environment Landscape
+  // ----------------------------------------------------
+  const createHomePlanetTexture = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1024;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    
+    // Sapphire ocean gradient
+    const oceanGrad = ctx.createLinearGradient(0, 0, 0, 512);
+    oceanGrad.addColorStop(0, '#0a192f');
+    oceanGrad.addColorStop(0.5, '#0d2b45');
+    oceanGrad.addColorStop(1, '#051124');
+    ctx.fillStyle = oceanGrad;
+    ctx.fillRect(0, 0, 1024, 512);
+
+    // Draw teal shoreline bases
+    ctx.fillStyle = '#22577a';
+    for (let i = 0; i < 22; i++) {
+      const cx = Math.random() * 1024;
+      const cy = 60 + Math.random() * 392;
+      const r = 60 + Math.random() * 120;
+      
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Layer realistic forest greens
+      ctx.fillStyle = '#1b4332';
+      ctx.beginPath();
+      ctx.arc(cx + (Math.random()-0.5)*30, cy + (Math.random()-0.5)*30, r * 0.85, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Layer light grass highlights
+      ctx.fillStyle = '#40916c';
+      ctx.beginPath();
+      ctx.arc(cx + (Math.random()-0.5)*50, cy + (Math.random()-0.5)*50, r * 0.5, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.fillStyle = '#22577a'; 
+    }
+
+    // Wispy atmospheric clouds
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    for (let i = 0; i < 15; i++) {
+      const cx = Math.random() * 1024;
+      const cy = 100 + Math.random() * 312;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, 140 + Math.random() * 180, 24 + Math.random() * 35, Math.PI / 12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    const tex = new THREE.CanvasTexture(canvas);
+    return tex;
+  };
+
+  const planetTexture = createHomePlanetTexture();
+  const planetGeo = new THREE.SphereGeometry(160, 64, 64);
+  const planetMat = new THREE.MeshStandardMaterial({
+    map: planetTexture,
+    roughness: 0.8,
+    metalness: 0.05
+  });
+  const homePlanet = new THREE.Mesh(planetGeo, planetMat);
+  homePlanet.position.set(0, -160.05, 0); // Nestles perfectly under house concrete base Y = -0.05
+  homePlanet.receiveShadow = true;
+  state.scene.add(homePlanet);
+
+  // Shiny 3D Ocean sphere cover (slightly larger than planet for depth)
+  const oceanGeo = new THREE.SphereGeometry(160.15, 64, 64);
+  const oceanMat = new THREE.MeshStandardMaterial({
+    color: 0x0a3c66,
+    roughness: 0.1,
+    metalness: 0.2,
+    transparent: true,
+    opacity: 0.55
+  });
+  const homeOcean = new THREE.Mesh(oceanGeo, oceanMat);
+  homeOcean.position.copy(homePlanet.position);
+  state.scene.add(homeOcean);
+
+  // 1. Flat grass plain plate
+  const grassPlain = new THREE.Mesh(
+    new THREE.CylinderGeometry(40, 40, 0.1, 48),
+    new THREE.MeshStandardMaterial({ color: 0x2d4a22, roughness: 0.95 })
+  );
+  grassPlain.position.set(0, -0.1, 0); // Flat base Y = -0.05 surface
+  grassPlain.receiveShadow = true;
+  state.scene.add(grassPlain);
+
+  // 2. Procedural pine forest trees around the house
+  function addTree(x: number, z: number) {
+    const tree = new THREE.Group();
+    tree.position.set(x, -0.05, z);
+
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.16, 1.2, 8),
+      new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.85 })
+    );
+    trunk.position.y = 0.6;
+    trunk.castShadow = true;
+    tree.add(trunk);
+
+    const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.9 });
+    for (let i = 0; i < 3; i++) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.55 - i * 0.12, 1.0, 8), leavesMat);
+      cone.position.y = 1.2 + i * 0.55;
+      cone.castShadow = true;
+      tree.add(cone);
+    }
+    state.scene.add(tree);
+  }
+
+  // Scatter 55 trees outside house, track loop, and airport runway
+  for (let i = 0; i < 55; i++) {
+    let x = 0, z = 0;
+    while (true) {
+      x = (Math.random() - 0.5) * 64;
+      z = (Math.random() - 0.5) * 64;
+      const dist = Math.sqrt(x*x + z*z);
+      if (dist > 10.0 && dist < 32.0) {
+        if (Math.abs(x - (-20)) < 4.0 && Math.abs(z) < 8.0) continue; // runway path
+        const rDist = Math.sqrt(x*x + Math.pow(z - (-5), 2));
+        if (Math.abs(rDist - 22.0) < 2.0) continue; // track path
+        break;
+      }
+    }
+    addTree(x, z);
+  }
+
+  // 3. Airport Terminal and Hangar Runway
+  const runway = new THREE.Mesh(
+    new THREE.BoxGeometry(2.4, 0.015, 14.0),
+    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.85 })
+  );
+  runway.position.set(-20, -0.04, 0);
+  runway.receiveShadow = true;
+  state.scene.add(runway);
+
+  for (let offset = -6.0; offset <= 6.0; offset += 3.0) {
+    const line = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, 0.005, 0.8),
+      new THREE.MeshBasicMaterial({ color: 0xffffff })
+    );
+    line.position.set(-20, -0.03, offset);
+    state.scene.add(line);
+  }
+
+  // Runway Landing Lights (Green start, Red end)
+  const greenLightMat = new THREE.MeshBasicMaterial({ color: 0x4ade80 });
+  for (let xOffset of [-1.1, 1.1]) {
+    const gl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), greenLightMat);
+    gl.position.set(-20 + xOffset, -0.02, 6.5);
+    state.scene.add(gl);
+  }
+  const redLightMat = new THREE.MeshBasicMaterial({ color: 0xf87171 });
+  for (let xOffset of [-1.1, 1.1]) {
+    const rl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), redLightMat);
+    rl.position.set(-20 + xOffset, -0.02, -6.5);
+    state.scene.add(rl);
+  }
+
+  const hangar = new THREE.Group();
+  hangar.position.set(-24, -0.04, -3);
+  const dome = new THREE.Mesh(
+    new THREE.SphereGeometry(1.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+    new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4, metalness: 0.6 })
+  );
+  dome.scale.set(1.0, 0.6, 1.3);
+  hangar.add(dome);
+
+  const tower = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.18, 0.24, 2.2, 10),
+    new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.5 })
+  );
+  tower.position.set(-2.0, 1.1, 0);
+  hangar.add(tower);
+
+  const cab = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32, 0.24, 0.4, 8),
+    new THREE.MeshStandardMaterial({ color: 0x2b6cb0, transparent: true, opacity: 0.5 })
+  );
+  cab.position.set(-2.0, 2.3, 0);
+  hangar.add(cab);
+
+  // Red beacon light on tower top
+  const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 6), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+  beacon.position.set(-2.0, 2.55, 0);
+  hangar.add(beacon);
+
+  state.scene.add(hangar);
+
+  // Helper function to build detailed realistic planes
+  function buildRealisticAirplane(wingColor: number): THREE.Group {
+    const plane = new THREE.Group();
+    
+    // Fuselage
+    const fuse = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.08, 1.3, 10),
+      new THREE.MeshStandardMaterial({ color: 0xfafafa, roughness: 0.3, metalness: 0.1 })
+    );
+    fuse.rotation.x = Math.PI / 2;
+    plane.add(fuse);
+    
+    // Nose Cone
+    const nose = new THREE.Mesh(
+      new THREE.SphereGeometry(0.12, 10, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0xd1d5db })
+    );
+    nose.position.set(0, 0, 0.65);
+    nose.rotation.x = Math.PI / 2;
+    plane.add(nose);
+    
+    // Cockpit window
+    const cockpit = new THREE.Mesh(
+      new THREE.BoxGeometry(0.14, 0.06, 0.12),
+      new THREE.MeshBasicMaterial({ color: 0x111827 })
+    );
+    cockpit.position.set(0, 0.07, 0.52);
+    plane.add(cockpit);
+    
+    // Swept wings
+    const wingL = new THREE.Mesh(
+      new THREE.BoxGeometry(0.75, 0.015, 0.22),
+      new THREE.MeshStandardMaterial({ color: wingColor, roughness: 0.4 })
+    );
+    wingL.position.set(0.4, -0.02, 0.05);
+    wingL.rotation.y = -Math.PI / 8;
+    
+    const wingR = wingL.clone();
+    wingR.position.x = -0.4;
+    wingR.rotation.y = Math.PI / 8;
+    plane.add(wingL, wingR);
+    
+    // Jet Engines
+    const engineGeo = new THREE.CylinderGeometry(0.05, 0.04, 0.22, 8);
+    const engineMat = new THREE.MeshStandardMaterial({ color: 0x4b5563, metalness: 0.7, roughness: 0.2 });
+    const engL = new THREE.Mesh(engineGeo, engineMat);
+    engL.rotation.x = Math.PI / 2;
+    engL.position.set(0.3, -0.07, 0.05);
+    const engR = engL.clone();
+    engR.position.x = -0.3;
+    plane.add(engL, engR);
+    
+    // Tail wing stabilizers
+    const stabL = new THREE.Mesh(
+      new THREE.BoxGeometry(0.24, 0.012, 0.1),
+      new THREE.MeshStandardMaterial({ color: wingColor })
+    );
+    stabL.position.set(0.16, 0.02, -0.5);
+    stabL.rotation.y = -Math.PI / 10;
+    const stabR = stabL.clone();
+    stabR.position.x = -0.16;
+    stabR.rotation.y = Math.PI / 10;
+    plane.add(stabL, stabR);
+    
+    // Vertical fin stabilizer
+    const fin = new THREE.Mesh(
+      new THREE.BoxGeometry(0.015, 0.24, 0.14),
+      new THREE.MeshStandardMaterial({ color: wingColor })
+    );
+    fin.position.set(0, 0.16, -0.52);
+    plane.add(fin);
+    
+    // Landing Gear wheels
+    const wheelMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+    const wheelGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.015, 6);
+    const wFront = new THREE.Mesh(wheelGeo, wheelMat);
+    wFront.rotation.z = Math.PI / 2;
+    wFront.position.set(0, -0.15, 0.45);
+    const wBackL = new THREE.Mesh(wheelGeo, wheelMat);
+    wBackL.rotation.z = Math.PI / 2;
+    wBackL.position.set(0.2, -0.15, -0.1);
+    const wBackR = wBackL.clone();
+    wBackR.position.x = -0.2;
+    plane.add(wFront, wBackL, wBackR);
+    
+    return plane;
+  }
+
+  // Set planes
+  state.planeMesh1 = buildRealisticAirplane(0xef4444);
+  state.scene.add(state.planeMesh1);
+  state.planeMesh2 = buildRealisticAirplane(0x3b82f6);
+  state.scene.add(state.planeMesh2);
+
+  // 4. Railway Tracks Circle and Stopping Train
+  const railwayGroup = new THREE.Group();
+  const trackRadius = 22.0;
+  const trackCenterZ = -5.0;
+
+  const tieMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+  const tiesCount = 120;
+  for (let i = 0; i < tiesCount; i++) {
+    const angle = (i / tiesCount) * Math.PI * 2;
+    const tx = Math.cos(angle) * trackRadius;
+    const tz = Math.sin(angle) * trackRadius + trackCenterZ;
+    const tie = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.015, 0.12), tieMat);
+    tie.position.set(tx, -0.045, tz);
+    tie.rotation.y = -angle;
+    railwayGroup.add(tie);
+  }
+
+  const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
+  const railL = new THREE.Mesh(new THREE.TorusGeometry(trackRadius - 0.15, 0.012, 6, 64), railMat);
+  railL.rotation.x = Math.PI / 2;
+  railL.position.set(0, -0.038, trackCenterZ);
+  const railR = new THREE.Mesh(new THREE.TorusGeometry(trackRadius + 0.15, 0.012, 6, 64), railMat);
+  railR.rotation.x = Math.PI / 2;
+  railR.position.set(0, -0.038, trackCenterZ);
+  railwayGroup.add(railL, railR);
+  state.scene.add(railwayGroup);
+
+  // Train Station Platform (With brick texture look, waiting bench, name sign, and waiting passengers!)
+  const station = new THREE.Group();
+  station.position.set(0, -0.04, -28.0);
+  const platform = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, 0.8), new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 }));
+  platform.position.y = 0.04;
+  station.add(platform);
+
+  const colGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.88);
+  const colMat = new THREE.MeshStandardMaterial({ color: 0x1e293b });
+  const col1 = new THREE.Mesh(colGeo, colMat); col1.position.set(-1.6, 0.48, -0.2);
+  const col2 = new THREE.Mesh(colGeo, colMat); col2.position.set(1.6, 0.48, -0.2);
+  station.add(col1, col2);
+
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(3.8, 0.04, 0.9), new THREE.MeshStandardMaterial({ color: 0x2b3e50 }));
+  canopy.position.set(0, 0.9, -0.1);
+  station.add(canopy);
+
+  // Platform Station Sign Board: "SS RAJPOOT STATION"
+  const signPost = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.5), new THREE.MeshStandardMaterial({ color: 0x333333 }));
+  signPost.position.set(0, 0.6, 0.35);
+  station.add(signPost);
+
+  const boardCanvas = document.createElement('canvas');
+  boardCanvas.width = 256;
+  boardCanvas.height = 64;
+  const bCtx = boardCanvas.getContext('2d')!;
+  bCtx.fillStyle = '#18181b';
+  bCtx.fillRect(0, 0, 256, 64);
+  bCtx.strokeStyle = '#f43f5e';
+  bCtx.lineWidth = 3;
+  bCtx.strokeRect(2, 2, 252, 60);
+  bCtx.fillStyle = '#ffffff';
+  bCtx.font = 'bold 15px monospace';
+  bCtx.textAlign = 'center';
+  bCtx.textBaseline = 'middle';
+  bCtx.fillText('SS RAJPOOT STATION', 128, 32);
+  const boardTex = new THREE.CanvasTexture(boardCanvas);
+  const boardMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.8, 0.22, 0.02),
+    new THREE.MeshBasicMaterial({ map: boardTex })
+  );
+  boardMesh.position.set(0, 0.85, 0.35);
+  station.add(boardMesh);
+
+  // Benches on Platform
+  const bench = new THREE.Group();
+  bench.position.set(-0.8, 0.08, 0);
+  const benchSeat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.02, 0.2), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+  benchSeat.position.y = 0.08;
+  const benchBack = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.16, 0.02), new THREE.MeshStandardMaterial({ color: 0x78350f }));
+  benchBack.position.set(0, 0.16, -0.1);
+  bench.add(benchSeat, benchBack);
+  station.add(bench);
+
+  // Waiting passengers on benches
+  for (let p = 0; p < 2; p++) {
+    const pass = new THREE.Group();
+    pass.position.set(-0.95 + p * 0.3, 0.17, 0);
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.08), new THREE.MeshStandardMaterial({ color: p === 0 ? 0xf59e0b : 0x06b6d4 }));
+    torso.position.y = 0.04;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.025), new THREE.MeshStandardMaterial({ color: 0xffdbac }));
+    head.position.y = 0.1;
+    pass.add(torso, head);
+    station.add(pass);
+  }
+
+  state.scene.add(station);
+
+  // Train Engine locomotive
+  state.trainGroup = new THREE.Group();
+  const engineBody = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.28, 0.64), new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.6, roughness: 0.3 }));
+  engineBody.position.y = 0.18;
+  state.trainGroup.add(engineBody);
+  const trainCabin = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.38, 0.26), new THREE.MeshStandardMaterial({ color: 0xb91c1c }));
+  trainCabin.position.set(0, 0.23, -0.16);
+  state.trainGroup.add(trainCabin);
+  const smokeFunnel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.12), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+  smokeFunnel.position.set(0, 0.36, 0.18);
+  state.trainGroup.add(smokeFunnel);
+  const headlight = new THREE.Mesh(new THREE.SphereGeometry(0.04, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffe699 }));
+  headlight.position.set(0, 0.18, 0.325);
+  state.trainGroup.add(headlight);
+  state.scene.add(state.trainGroup);
+
+  // 2 Train Carriages (Hollow body, transparent glass cover, and sitting passengers!)
+  const cColors = [0x1e3a8a, 0x0f766e];
+  for (let c = 0; c < 2; c++) {
+    const carriage = new THREE.Group();
+    const cBody = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.52), new THREE.MeshStandardMaterial({ color: cColors[c], roughness: 0.4 }));
+    cBody.position.y = 0.17;
+    carriage.add(cBody);
+
+    const cabinCover = new THREE.Mesh(
+      new THREE.BoxGeometry(0.20, 0.18, 0.48),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3, roughness: 0.1 })
+    );
+    cabinCover.position.set(0, 0.28, 0);
+    carriage.add(cabinCover);
+
+    // Place 3 sitting passengers inside the carriage!
+    const seatZ = [-0.16, 0, 0.16];
+    for (let s = 0; s < 3; s++) {
+      const passenger = new THREE.Group();
+      passenger.position.set((Math.random() - 0.5) * 0.08, 0.18, seatZ[s]);
+
+      const pTorso = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.025, 0.025, 0.08),
+        new THREE.MeshStandardMaterial({ color: Math.random() * 0xffffff })
+      );
+      pTorso.position.y = 0.04;
+      passenger.add(pTorso);
+
+      const pHead = new THREE.Mesh(
+        new THREE.SphereGeometry(0.025),
+        new THREE.MeshStandardMaterial({ color: 0xffdbac })
+      );
+      pHead.position.y = 0.1;
+      passenger.add(pHead);
+
+      carriage.add(passenger);
+    }
+
+    const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+    for (let wx of [-0.09, 0.09]) {
+      for (let wz of [-0.18, 0.18]) {
+        const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.03, 8), wheelMat);
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(wx, 0.05, wz);
+        carriage.add(wheel);
+      }
+    }
+    state.scene.add(carriage);
+    state.trainCarriages.push(carriage);
+  }
 }
