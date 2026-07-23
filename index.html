@@ -107,6 +107,11 @@
               <div>✦ Participated in the <strong>Odoo Hackathon</strong>, solving real-world challenges.</div>
               <div>✦ Received the <strong>Best Judge Award</strong> at the college Tech Fest.</div>
             </div>
+            
+            <div style="margin-top: 25px; display: flex; gap: 12px; flex-wrap: wrap;">
+              <a class="nav-btn" href="./Siddhant_Singh_Rajpoot_Resume.pdf" download style="text-decoration: none; padding: 10px 18px; border-radius: 20px;">Download Resume</a>
+              <button class="nav-btn" id="btn-credentials-trip" style="background: var(--text-highlight); color: #0d0f12; padding: 10px 18px; border-radius: 20px; font-weight: 700; border: none; cursor: pointer;">🚀 Launch Credentials Flight</button>
+            </div>
           </div>
         </section>
 
@@ -279,21 +284,68 @@
           <div class="project-detail-header">
             <span class="project-detail-meta" id="project-detail-meta">01 / CATEGORY</span>
             <h2 class="project-detail-title" id="project-detail-title">Project Title</h2>
-            <div class="project-detail-tags" id="project-detail-tags">
-              <span>Tag</span>
-            </div>
+          </div>
+          <div class="project-detail-tabs-header">
+            <button class="detail-tab-btn active" data-tab="tab-overview">✦ Overview</button>
+            <button class="detail-tab-btn" data-tab="tab-architecture">✦ Architecture</button>
+            <button class="detail-tab-btn" data-tab="tab-gallery">✦ Gallery & Walkthrough</button>
+            <button class="detail-tab-btn" data-tab="tab-tech">✦ Tech Specs</button>
           </div>
           <hr class="project-detail-divider"/>
           <div class="project-detail-body">
-            <div class="project-detail-section">
-              <h4>Overview</h4>
-              <p id="project-detail-desc">Detailed overview of the project goes here...</p>
+            <!-- OVERVIEW TAB -->
+            <div class="project-tab-content active" id="tab-overview">
+              <div class="project-detail-section">
+                <h4>Overview</h4>
+                <p id="project-detail-desc">Detailed overview of the project goes here...</p>
+              </div>
+              <div class="project-detail-section">
+                <h4>Key Features & Achievements</h4>
+                <ul id="project-detail-features">
+                  <li>Feature details...</li>
+                </ul>
+              </div>
             </div>
-            <div class="project-detail-section">
-              <h4>Key Features & Achievements</h4>
-              <ul id="project-detail-features">
-                <li>Feature details...</li>
-              </ul>
+            
+            <!-- ARCHITECTURE TAB -->
+            <div class="project-tab-content" id="tab-architecture">
+              <div class="project-detail-section">
+                <h4>System Design & Architecture</h4>
+                <p id="project-detail-arch-desc">Detailed network and service orchestration paths...</p>
+                <div class="arch-flowchart" id="project-detail-arch-flow">
+                  <!-- Flowchart -->
+                </div>
+              </div>
+            </div>
+
+            <!-- GALLERY TAB -->
+            <div class="project-tab-content" id="tab-gallery">
+              <div class="project-detail-section">
+                <h4>Visual Walkthrough & Gallery</h4>
+                <div class="gallery-wrapper">
+                  <div class="gallery-main">
+                    <img id="gallery-active-img" src="" alt="Active Project Image" />
+                    <button class="gallery-nav-btn prev" id="gallery-prev-btn">‹</button>
+                    <button class="gallery-nav-btn next" id="gallery-next-btn">›</button>
+                  </div>
+                  <div class="gallery-thumbs" id="gallery-thumbs">
+                    <!-- Thumbnails -->
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- TECH DETAILS TAB -->
+            <div class="project-tab-content" id="tab-tech">
+              <div class="project-detail-section">
+                <h4>Technologies & Specifications</h4>
+                <div class="project-detail-tags" id="project-detail-tags">
+                  <!-- Tags list duplicate -->
+                </div>
+                <div class="tech-spec-details" id="project-detail-tech-specs">
+                  <!-- Tech spec details -->
+                </div>
+              </div>
             </div>
           </div>
         </div>
