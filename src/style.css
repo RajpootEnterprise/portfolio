@@ -1184,3 +1184,189 @@ body.dark-theme .widget-btn-room {
   font-size: 0.85rem;
 }
 
+/* ----------------------------------------------------
+   Animated Gallery & Project Detail Tabs
+   ---------------------------------------------------- */
+.project-detail-tabs-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.detail-tab-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.detail-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateY(-1.5px);
+}
+
+.detail-tab-btn.active {
+  background: rgba(224, 122, 95, 0.15);
+  border-color: var(--text-highlight);
+  color: var(--text-highlight);
+  box-shadow: 0 0 12px rgba(224, 122, 95, 0.2);
+}
+
+/* Tab Panes */
+.project-tab-content {
+  display: none;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.project-tab-content.active {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Gallery Layout */
+.gallery-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.gallery-main {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  background: #0d0f12;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+.gallery-main img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gallery-main img.fade-out {
+  opacity: 0;
+  transform: scale(0.97);
+}
+
+.gallery-nav-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.4rem;
+  line-height: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 5;
+}
+
+.gallery-nav-btn:hover {
+  background: rgba(224, 122, 95, 0.8);
+  border-color: var(--text-highlight);
+  box-shadow: 0 0 10px rgba(224, 122, 95, 0.4);
+}
+
+.gallery-nav-btn.prev {
+  left: 12px;
+}
+
+.gallery-nav-btn.next {
+  right: 12px;
+}
+
+.gallery-thumbs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.gallery-thumbs::-webkit-scrollbar {
+  height: 4px;
+}
+
+.gallery-thumbs::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+}
+
+.thumb-item {
+  width: 64px;
+  height: 44px;
+  border: 2px solid transparent;
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  opacity: 0.65;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.thumb-item:hover {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.thumb-item.active {
+  border-color: var(--text-highlight);
+  opacity: 1;
+  box-shadow: 0 0 8px rgba(224, 122, 95, 0.3);
+}
+
+.thumb-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Architecture Flowchart box */
+.arch-flowchart {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: monospace;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #38bdf8;
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.tech-spec-details {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 12px;
+}
+
+
