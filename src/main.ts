@@ -406,34 +406,9 @@ function navigateToRoom(targetRoomName: string) {
   const labelEl = document.getElementById('current-room-text');
   if (labelEl) labelEl.textContent = roomNames[targetRoomName];
 
-  // Calculate stable camera rotation parameters to preserve horizontal (theta) AND vertical (phi) manual angles
-  const relX = state.camera.position.x - state.controls.target.x;
-  const relY = state.camera.position.y - state.controls.target.y;
-  const relZ = state.camera.position.z - state.controls.target.z;
-  const r = Math.sqrt(relX * relX + relY * relY + relZ * relZ);
-  
-  const currentTheta = Math.atan2(relX, relZ);
-  const currentPhi = Math.acos(relY / r);
-
   const targetView = cameraViews[targetRoomName];
-  const mobileMultiplier = (window.innerWidth < 768) ? 1.65 : 1.0;
-
-  const baseRadius = Math.sqrt(
-    Math.pow(targetView.position.x - targetView.target.x, 2) +
-    Math.pow(targetView.position.y - targetView.target.y, 2) +
-    Math.pow(targetView.position.z - targetView.target.z, 2)
-  );
-  const defaultRadius = baseRadius * mobileMultiplier;
-
-  // Compute new relative coordinates preserving theta and phi
-  const newRelX = defaultRadius * Math.sin(currentTheta) * Math.sin(currentPhi);
-  const newRelY = defaultRadius * Math.cos(currentPhi);
-  const newRelZ = defaultRadius * Math.cos(currentTheta) * Math.sin(currentPhi);
 
   const newTargetY = targetView.target.y + yOffset;
-  const newCamX = targetView.target.x + newRelX;
-  const newCamY = newTargetY + newRelY;
-  const newCamZ = targetView.target.z + newRelZ;
 
   const startRoom = state.currentRoom;
   const startPos = startRoom === 'overview' ? roomPositions['home'] : roomPositions[startRoom];
@@ -489,15 +464,8 @@ function navigateToRoom(targetRoomName: string) {
       ease: 'power1.inOut'
     }, '<');
 
-    // Sweep camera viewport in sync (preserve horizontal and vertical angles!)
-    tl.to(state.camera.position, {
-      x: newCamX,
-      y: newCamY,
-      z: newCamZ,
-      duration: 0.8,
-      ease: 'power2.inOut'
-    }, '<');
-
+    // Only pan the orbit target — DO NOT touch camera.position so the house stays
+    // exactly as the user oriented it (no auto-tilt when changing floors via tabs)
     tl.to(state.controls.target, {
       x: targetView.target.x,
       y: newTargetY,
@@ -532,15 +500,7 @@ function navigateToRoom(targetRoomName: string) {
     const dist2 = state.avatar.position.distanceTo(targetPos.stand);
     tl.to(state.avatar.position, { x: targetPos.stand.x, y: targetPos.stand.y, z: targetPos.stand.z, duration: dist2 / strideVelocity, ease: 'none' });
 
-    // Sweep camera view (preserve angles!)
-    tl.to(state.camera.position, {
-      x: newCamX,
-      y: newCamY,
-      z: newCamZ,
-      duration: 0.65,
-      ease: 'power2.inOut'
-    }, '<');
-
+    // Only pan the orbit target — leave camera.position untouched (no house tilt)
     tl.to(state.controls.target, {
       x: targetView.target.x,
       y: newTargetY,
@@ -1179,10 +1139,10 @@ function animate(time: number) {
     }
   });
 
-  // Scroll Zoom-out to Overview threshold check
+  // Scroll Zoom-out to Overview threshold check (raised to 30 so panel stays open while zooming)
   if (!state.isSpaceTrip && !state.isTransitioning && state.currentRoom !== 'overview') {
     const dist = state.camera.position.distanceTo(state.controls.target);
-    if (dist > 20.0) {
+    if (dist > 30.0) {
       exitRoomToOverview();
     }
   }
@@ -2024,5 +1984,188 @@ function returnToEarth() {
   }, '<');
 }
 
-// Boot up
-window.addEventListener('DOMContentLoaded', init);
+// -------------------------------------------------------
+// Mobile Animated Website Controller
+// Runs instead of 3D canvas on screens < 768px
+// -------------------------------------------------------
+function initMobileSite() {
+  // ---- Particles ----
+  const canvas = document.getElementById('mobile-particles') as HTMLCanvasElement;
+  if (!canvas) return;
+  const ctx2d = canvas.getContext('2d')!;
+
+  interface Particle {
+    x: number; y: number;
+    vx: number; vy: number;
+    r: number; alpha: number;
+    color: string;
+  }
+
+  const PARTICLE_COLORS = ['#7c3aed', '#0ea5e9', '#e07a5f', '#a78bfa', '#38bdf8'];
+  let particles: Particle[] = [];
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+
+  function spawnParticle(): Particle {
+    const color = PARTICLE_COLORS[Math.floor(Math.random() * PARTICLE_COLORS.length)];
+    return {
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 0.25,
+      vy: -0.2 - Math.random() * 0.4,
+      r: 1.0 + Math.random() * 1.5,
+      alpha: 0.15 + Math.random() * 0.45,
+      color
+    };
+  }
+
+  function initParticles() {
+    particles = Array.from({ length: 80 }, spawnParticle);
+  }
+
+  function tickParticles() {
+    ctx2d.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach((p, i) => {
+      p.x += p.vx;
+      p.y += p.vy;
+      if (p.y < -8 || p.x < -8 || p.x > canvas.width + 8) {
+        particles[i] = spawnParticle();
+        particles[i].y = canvas.height + 8;
+      }
+      ctx2d.beginPath();
+      ctx2d.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+      ctx2d.fillStyle = p.color;
+      ctx2d.globalAlpha = p.alpha;
+      ctx2d.fill();
+      ctx2d.globalAlpha = 1.0;
+    });
+    requestAnimationFrame(tickParticles);
+  }
+
+  resizeCanvas();
+  initParticles();
+  tickParticles();
+  window.addEventListener('resize', () => { resizeCanvas(); initParticles(); });
+
+  // ---- Typewriter ----
+  const typewriterEl = document.getElementById('mob-typewriter');
+  if (typewriterEl) {
+    const phrases = [
+      '3D Experiences',
+      'Microservices',
+      'REST APIs',
+      'Cloud Systems',
+      'Full-Stack Apps',
+      'Immersive Web'
+    ];
+    let phraseIdx = 0;
+    let charIdx = 0;
+    let isDeleting = false;
+    const TYPING_SPEED = 90;
+    const DELETING_SPEED = 45;
+    const PAUSE_AT_END = 1800;
+    const PAUSE_AT_START = 400;
+
+    function typeStep() {
+      if (!typewriterEl) return;
+      const phrase = phrases[phraseIdx];
+      if (!isDeleting) {
+        typewriterEl.textContent = phrase.substring(0, charIdx + 1);
+        charIdx++;
+        if (charIdx === phrase.length) {
+          isDeleting = true;
+          setTimeout(typeStep, PAUSE_AT_END);
+          return;
+        }
+        setTimeout(typeStep, TYPING_SPEED);
+      } else {
+        typewriterEl.textContent = phrase.substring(0, charIdx - 1);
+        charIdx--;
+        if (charIdx === 0) {
+          isDeleting = false;
+          phraseIdx = (phraseIdx + 1) % phrases.length;
+          setTimeout(typeStep, PAUSE_AT_START);
+          return;
+        }
+        setTimeout(typeStep, DELETING_SPEED);
+      }
+    }
+    setTimeout(typeStep, 800);
+  }
+
+  // ---- Tab / Section switching ----
+  function switchSection(sectionId: string) {
+    // Deactivate all sections
+    document.querySelectorAll('.mob-section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.mob-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.mob-nav-link').forEach(l => l.classList.remove('active'));
+
+    const target = document.getElementById(sectionId);
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll(`.mob-tab[data-section="${sectionId}"]`).forEach(t => t.classList.add('active'));
+    document.querySelectorAll(`.mob-nav-link[data-section="${sectionId}"]`).forEach(l => l.classList.add('active'));
+
+    // Close nav drawer
+    document.getElementById('mob-nav-drawer')?.classList.remove('open');
+  }
+
+  // Tab bar clicks
+  document.querySelectorAll('.mob-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const sid = (tab as HTMLElement).dataset.section;
+      if (sid) switchSection(sid);
+    });
+  });
+
+  // Nav drawer link clicks
+  document.querySelectorAll('.mob-nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      const sid = (link as HTMLElement).dataset.section;
+      if (sid) switchSection(sid);
+    });
+  });
+
+  // "See My Work" button on hero
+  document.getElementById('mob-see-work')?.addEventListener('click', () => {
+    switchSection('mob-projects');
+  });
+
+  // ---- Hamburger menu ----
+  const menuBtn = document.getElementById('mob-menu-btn');
+  const drawer = document.getElementById('mob-nav-drawer');
+  menuBtn?.addEventListener('click', () => {
+    drawer?.classList.toggle('open');
+  });
+  // Close on outside tap
+  document.addEventListener('click', (e) => {
+    if (drawer?.classList.contains('open') &&
+        !drawer.contains(e.target as Node) &&
+        e.target !== menuBtn) {
+      drawer.classList.remove('open');
+    }
+  });
+
+  // ---- Contact form ----
+  document.getElementById('mob-contact-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const success = document.getElementById('mob-form-success');
+    if (success) {
+      success.classList.add('visible');
+      setTimeout(() => success.classList.remove('visible'), 4000);
+    }
+    (e.target as HTMLFormElement).reset();
+  });
+}
+
+// Boot up — skip 3D on mobile
+window.addEventListener('DOMContentLoaded', () => {
+  if (window.innerWidth < 768) {
+    initMobileSite();
+  } else {
+    init();
+  }
+});
