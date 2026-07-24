@@ -6,6 +6,11 @@ export const HEIGHTS = {
   second: 6.4
 };
 
+export const GLOBE = {
+  radius: 35.0,
+  center: new THREE.Vector3(0, -35.0 - 0.05, 0)
+};
+
 export const COLORS = {
   houseBase: 0xebdcb9,
   floorLightLeft: 0xfae1cd,      // Cream carpet (Home)

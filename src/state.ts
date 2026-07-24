@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { Avatar } from './avatar';
+
 
 export const state = {
   // Core Three.js references
@@ -8,7 +8,7 @@ export const state = {
   camera: null as unknown as THREE.PerspectiveCamera,
   renderer: null as unknown as THREE.WebGLRenderer,
   controls: null as unknown as OrbitControls,
-  avatar: null as unknown as Avatar,
+  avatar: null as any,
   houseGroup: null as unknown as THREE.Group,
   flagMesh: null as unknown as THREE.Mesh,
   ufoList: [] as THREE.Group[],
@@ -23,6 +23,7 @@ export const state = {
   elevator: null as unknown as THREE.Group,
   mailboxFlag: null as unknown as THREE.Group,
   letterMesh: null as unknown as THREE.Mesh,
+  windmillBlades: null as any,
   
   // References to Helicopter & Helipad
   helipad: null as unknown as THREE.Group,
@@ -43,6 +44,8 @@ export const state = {
   moonGroup: null as unknown as THREE.Group,
   planetGroup: null as unknown as THREE.Group,
   planetList: [] as THREE.Group[],
+  riverMesh1: null as unknown as THREE.Mesh,
+  riverMesh2: null as unknown as THREE.Mesh,
   starPoints: null as unknown as THREE.Points,
   birdsGroup: null as unknown as THREE.Group,
   birdsList: [] as THREE.Group[],

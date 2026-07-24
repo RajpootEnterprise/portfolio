@@ -1,6 +1,22 @@
 import * as THREE from 'three';
 import { state } from './state';
-import { COLORS, HEIGHTS, roomPositions } from './constants';
+import { COLORS, HEIGHTS, roomPositions, GLOBE } from './constants';
+
+export function projectObjectToGlobe(obj: THREE.Object3D, fx: number, fy: number, fz: number, yaw = 0) {
+  const h = GLOBE.radius + fy;
+  const rel = new THREE.Vector3(fx, GLOBE.radius, fz);
+  rel.normalize().multiplyScalar(h);
+  const spherePos = new THREE.Vector3().addVectors(GLOBE.center, rel);
+  obj.position.copy(spherePos);
+
+  obj.rotation.set(0, yaw, 0);
+  obj.updateMatrix();
+
+  const up = new THREE.Vector3(0, 1, 0);
+  const normal = spherePos.clone().sub(GLOBE.center).normalize();
+  const tiltQ = new THREE.Quaternion().setFromUnitVectors(up, normal);
+  obj.quaternion.premultiply(tiltQ);
+}
 
 export function setupLights() {
   // Warm Ambient
@@ -86,7 +102,7 @@ export function setupLights() {
 
 export function createHelipad() {
   state.helipad = new THREE.Group();
-  state.helipad.position.set(-3.75, HEIGHTS.second + 2.2, 0);
+  projectObjectToGlobe(state.helipad, -16.0, -0.04, -4.0);
 
   const platformGeo = new THREE.CylinderGeometry(1.75, 1.75, 0.04, 32);
   const platformMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.8 });
@@ -125,12 +141,13 @@ export function createHelipad() {
     }
   }
 
-  state.houseGroup.add(state.helipad);
+  state.scene.add(state.helipad);
 }
 
 export function createHelicopter() {
   state.helicopter = new THREE.Group();
-  state.helicopter.position.set(-3.75, HEIGHTS.second + 3.56, 0);
+  projectObjectToGlobe(state.helicopter, -16.0, 0.32, -4.0);
+  state.helicopter.userData = { originalQ: state.helicopter.quaternion.clone() };
 
   const bodyGeo = new THREE.SphereGeometry(0.35, 16, 16);
   bodyGeo.scale(1.4, 1.0, 1.0);
@@ -761,96 +778,268 @@ export function createCelestialEnvironment() {
   // ----------------------------------------------------
   const createHomePlanetTexture = () => {
     const canvas = document.createElement('canvas');
-    canvas.width = 1024;
-    canvas.height = 512;
+    canvas.width = 2048;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
-    
-    // Sapphire ocean gradient
-    const oceanGrad = ctx.createLinearGradient(0, 0, 0, 512);
-    oceanGrad.addColorStop(0, '#0a192f');
-    oceanGrad.addColorStop(0.5, '#0d2b45');
-    oceanGrad.addColorStop(1, '#051124');
+
+    // --- Deep blue ocean base ---
+    const oceanGrad = ctx.createLinearGradient(0, 0, 0, 1024);
+    oceanGrad.addColorStop(0,   '#0a2744');  // dark polar ocean
+    oceanGrad.addColorStop(0.2, '#0d4a7d');  // deep blue
+    oceanGrad.addColorStop(0.5, '#1565a0');  // mid-ocean blue
+    oceanGrad.addColorStop(0.8, '#0d4a7d');
+    oceanGrad.addColorStop(1,   '#0a2744');
     ctx.fillStyle = oceanGrad;
-    ctx.fillRect(0, 0, 1024, 512);
+    ctx.fillRect(0, 0, 2048, 1024);
 
-    // Draw teal shoreline bases
-    ctx.fillStyle = '#22577a';
-    for (let i = 0; i < 22; i++) {
-      const cx = Math.random() * 1024;
-      const cy = 60 + Math.random() * 392;
-      const r = 60 + Math.random() * 120;
-      
-      ctx.beginPath();
-      ctx.arc(cx, cy, r, 0, Math.PI * 2);
-      ctx.fill();
-      
-      // Layer realistic forest greens
-      ctx.fillStyle = '#1b4332';
-      ctx.beginPath();
-      ctx.arc(cx + (Math.random()-0.5)*30, cy + (Math.random()-0.5)*30, r * 0.85, 0, Math.PI * 2);
-      ctx.fill();
+    // Tropical ocean shimmer band
+    const tropGrad = ctx.createLinearGradient(0, 350, 0, 680);
+    tropGrad.addColorStop(0, 'rgba(22,160,133,0)');
+    tropGrad.addColorStop(0.5, 'rgba(22,160,133,0.22)');
+    tropGrad.addColorStop(1, 'rgba(22,160,133,0)');
+    ctx.fillStyle = tropGrad;
+    ctx.fillRect(0, 0, 2048, 1024);
 
-      // Layer light grass highlights
-      ctx.fillStyle = '#40916c';
+    // --- Helper: draw a filled ellipse continent blob ---
+    const blob = (x: number, y: number, rx: number, ry: number, angle: number, color: string, alpha = 1) => {
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = color;
+      ctx.translate(x, y);
+      ctx.rotate(angle);
       ctx.beginPath();
-      ctx.arc(cx + (Math.random()-0.5)*50, cy + (Math.random()-0.5)*50, r * 0.5, 0, Math.PI * 2);
+      ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
-      
-      ctx.fillStyle = '#22577a'; 
+      ctx.restore();
+    };
+
+    // ======= CONTINENT 1: "Americas" (left side) =======
+    // Base landmass - deep green
+    blob(280, 380, 180, 290, -0.15, '#1a5c2a');
+    blob(300, 280, 110, 160, 0.1, '#1e6b30');
+    // Jungle interior
+    blob(270, 430, 120, 180, -0.2, '#155220');
+    blob(320, 500, 80, 100, 0, '#1d6b2e');
+    // Grassland/savanna highlights
+    blob(290, 350, 80, 100, 0.1, '#3a8c40');
+    blob(260, 480, 60, 90, -0.1, '#2e7d35');
+    // Northern tundra/lighter green
+    blob(300, 230, 90, 70, 0.2, '#4a9a4f');
+    // Desert strip (tan)
+    blob(330, 380, 50, 35, 0.3, '#c8a84b');
+    // Snow north
+    blob(290, 155, 70, 40, 0, '#e8f4e8');
+    blob(295, 148, 50, 28, 0, '#ffffff');
+    // Coastal water bays
+    blob(210, 340, 30, 50, 0.4, '#0d4a7d');
+    blob(380, 460, 25, 40, -0.3, '#0d4a7d');
+
+    // ======= CONTINENT 2: "Europe-Africa" (center) =======
+    // Africa - large rich green/brown
+    blob(820, 480, 160, 250, 0.05, '#1e5c1e');
+    blob(830, 530, 130, 200, -0.05, '#156015');
+    // Central African jungle
+    blob(810, 560, 100, 130, 0, '#0d4d0d');
+    // Savanna/east Africa
+    blob(880, 500, 80, 100, 0.2, '#5a8a2e');
+    blob(860, 430, 60, 80, 0.1, '#6b9a38');
+    // Sahara desert
+    blob(820, 370, 100, 55, 0.1, '#d4a84b');
+    blob(770, 360, 70, 45, 0, '#c8963d');
+    // Southern Africa tip
+    blob(830, 700, 60, 80, 0, '#2e7a2e');
+    // Europe (north of Africa)
+    blob(840, 270, 120, 80, -0.1, '#3a8240');
+    blob(860, 240, 90, 55, 0, '#4a9a4f');
+    blob(900, 260, 60, 40, 0.2, '#5aaa5a');
+    // Mediterranean coast
+    blob(820, 310, 60, 25, 0, '#4a9a4f');
+    // European snow/mountains
+    blob(860, 210, 50, 30, 0, '#d0e8d0');
+
+    // ======= CONTINENT 3: "Asia" (right-center) =======
+    // Main Eurasian body
+    blob(1200, 330, 280, 200, -0.1, '#1e6b30');
+    blob(1280, 300, 200, 150, 0.05, '#2a7a35');
+    blob(1150, 380, 180, 130, -0.05, '#176020');
+    // Siberian tundra (lighter)
+    blob(1200, 220, 200, 100, 0, '#5a9a5a');
+    blob(1300, 200, 150, 80, 0.1, '#6aaa6a');
+    // Gobi desert
+    blob(1270, 360, 110, 70, 0.15, '#c8a84b');
+    // Tropical Asia / SE Asia
+    blob(1380, 450, 90, 100, -0.1, '#0d5c0d');
+    blob(1400, 480, 60, 80, 0, '#156015');
+    // Indian subcontinent
+    blob(1180, 460, 70, 100, -0.05, '#2a7a30');
+    blob(1190, 520, 50, 70, 0, '#3a8840');
+    // Himalayan snow caps
+    blob(1200, 390, 90, 25, 0.15, '#d8eed8');
+    blob(1210, 388, 70, 18, 0.15, '#ffffff');
+    // Japanese islands
+    blob(1490, 320, 20, 55, -0.3, '#3a8a3a');
+    blob(1510, 290, 15, 35, -0.25, '#4a9a4f');
+
+    // ======= CONTINENT 4: "Australia" =======
+    blob(1560, 580, 100, 75, 0.1, '#2a7a30');
+    blob(1540, 600, 80, 60, -0.05, '#1e6b25');
+    // Outback desert interior
+    blob(1560, 590, 55, 40, 0, '#c87e3d');
+    // Coastal green
+    blob(1510, 610, 40, 30, 0.2, '#3a8a40');
+    blob(1610, 570, 35, 28, -0.2, '#4a9a4f');
+
+    // ======= POLAR ICE CAPS =======
+    // North pole
+    const npGrad = ctx.createRadialGradient(1024, 30, 0, 1024, 30, 200);
+    npGrad.addColorStop(0, 'rgba(240,255,240,0.95)');
+    npGrad.addColorStop(0.5, 'rgba(220,240,220,0.7)');
+    npGrad.addColorStop(1, 'rgba(200,230,200,0)');
+    ctx.fillStyle = npGrad;
+    ctx.fillRect(0, 0, 2048, 200);
+
+    // South pole
+    const spGrad = ctx.createRadialGradient(1024, 1010, 0, 1024, 1010, 200);
+    spGrad.addColorStop(0, 'rgba(240,255,240,0.95)');
+    spGrad.addColorStop(0.5, 'rgba(220,240,220,0.7)');
+    spGrad.addColorStop(1, 'rgba(200,230,200,0)');
+    ctx.fillStyle = spGrad;
+    ctx.fillRect(0, 840, 2048, 184);
+
+    // ======= MOUNTAIN SHADOWS on continents =======
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#0a2a0a';
+    // Andes
+    for (let i = 0; i < 8; i++) {
+      blob(270 + i * 5, 320 + i * 20, 12, 30, -0.15 + i * 0.02, '#0d3510', 0.25);
     }
+    // Himalayas
+    for (let i = 0; i < 10; i++) {
+      blob(1160 + i * 12, 392 + Math.sin(i) * 8, 18, 12, 0.1, '#0a2a0a', 0.3);
+    }
+    // Alps (Europe)
+    for (let i = 0; i < 5; i++) {
+      blob(855 + i * 14, 255 + i * 4, 10, 8, 0.1, '#0a2a0a', 0.25);
+    }
+    ctx.globalAlpha = 1.0;
 
-    // Wispy atmospheric clouds
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    for (let i = 0; i < 15; i++) {
-      const cx = Math.random() * 1024;
-      const cy = 100 + Math.random() * 312;
+    // ======= OCEAN DEPTH VARIATIONS =======
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = '#173a6b';
+    blob(600, 500, 200, 120, 0.2, '#0a2744', 0.15);
+    blob(1700, 400, 180, 130, -0.1, '#0a2744', 0.12);
+    ctx.globalAlpha = 1.0;
+
+    // ======= ATMOSPHERIC CLOUD LAYER =======
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = 'rgba(255,255,255,1)';
+    for (let i = 0; i < 30; i++) {
+      const cx = Math.random() * 2048;
+      const cy = 80 + Math.random() * 860;
+      const rx = 120 + Math.random() * 250;
+      const ry = 18 + Math.random() * 32;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, 140 + Math.random() * 180, 24 + Math.random() * 35, Math.PI / 12, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, rx, ry, (Math.random() - 0.5) * 0.4, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.globalAlpha = 1.0;
 
     const tex = new THREE.CanvasTexture(canvas);
     return tex;
   };
 
   const planetTexture = createHomePlanetTexture();
-  const planetGeo = new THREE.SphereGeometry(160, 64, 64);
-  const planetMat = new THREE.MeshStandardMaterial({
+  const globeRadius = GLOBE.radius;
+  const globeGeo = new THREE.SphereGeometry(globeRadius, 64, 64);
+  const globeMat = new THREE.MeshStandardMaterial({
     map: planetTexture,
-    roughness: 0.8,
+    roughness: 0.85,
     metalness: 0.05
   });
-  const homePlanet = new THREE.Mesh(planetGeo, planetMat);
-  homePlanet.position.set(0, -160.05, 0); // Nestles perfectly under house concrete base Y = -0.05
-  homePlanet.receiveShadow = true;
-  state.scene.add(homePlanet);
+  const globeMesh = new THREE.Mesh(globeGeo, globeMat);
+  globeMesh.position.copy(GLOBE.center);
+  globeMesh.receiveShadow = true;
+  state.scene.add(globeMesh);
 
-  // Shiny 3D Ocean sphere cover (slightly larger than planet for depth)
-  const oceanGeo = new THREE.SphereGeometry(160.15, 64, 64);
-  const oceanMat = new THREE.MeshStandardMaterial({
-    color: 0x0a3c66,
-    roughness: 0.1,
-    metalness: 0.2,
+  // Thin atmospheric glow shell (very subtle, doesn't wash out the texture)
+  const atmGeo = new THREE.SphereGeometry(globeRadius + 0.8, 32, 32);
+  const atmMat = new THREE.MeshStandardMaterial({
+    color: 0x88ccff,
+    roughness: 0.0,
+    metalness: 0.0,
     transparent: true,
-    opacity: 0.55
+    opacity: 0.06,
+    side: THREE.FrontSide,
+    depthWrite: false
   });
-  const homeOcean = new THREE.Mesh(oceanGeo, oceanMat);
-  homeOcean.position.copy(homePlanet.position);
-  state.scene.add(homeOcean);
+  const atm = new THREE.Mesh(atmGeo, atmMat);
+  atm.position.copy(GLOBE.center);
+  state.scene.add(atm);
 
-  // 1. Flat grass plain plate
-  const grassPlain = new THREE.Mesh(
-    new THREE.CylinderGeometry(40, 40, 0.1, 48),
-    new THREE.MeshStandardMaterial({ color: 0x2d4a22, roughness: 0.95 })
-  );
-  grassPlain.position.set(0, -0.1, 0); // Flat base Y = -0.05 surface
-  grassPlain.receiveShadow = true;
-  state.scene.add(grassPlain);
+  // 1.5. Winding River through the forest on the right side of the house
+  const riverWidth = 3.0;
+  const riverLength = 76.0;
+  
+  const riverGeo1 = new THREE.PlaneGeometry(riverWidth, riverLength, 1, 64);
+  const posAttr1 = riverGeo1.attributes.position;
+  for (let i = 0; i < posAttr1.count; i++) {
+    const lx = posAttr1.getX(i);
+    const ly = posAttr1.getY(i);
+    const wz = -ly;
+    const wx = lx + (15.0 + 4.5 * Math.sin(wz * 0.13));
+    const flatY = 0.08;  // slightly above globe surface to prevent z-fighting
+    const h = GLOBE.radius + flatY;
+    const rel = new THREE.Vector3(wx, GLOBE.radius, wz);
+    rel.normalize().multiplyScalar(h);
+    const spherePos = new THREE.Vector3().addVectors(GLOBE.center, rel);
+    posAttr1.setXYZ(i, spherePos.x, spherePos.y, spherePos.z);
+  }
+  riverGeo1.computeVertexNormals();
+
+  const riverMat1 = new THREE.MeshStandardMaterial({
+    color: 0x1a7fc4,
+    roughness: 0.05,
+    metalness: 0.3,
+    transparent: true,
+    opacity: 0.92,
+    depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -2,
+    polygonOffsetUnits: -2
+  });
+  
+  state.riverMesh1 = new THREE.Mesh(riverGeo1, riverMat1);
+  state.riverMesh1.receiveShadow = true;
+  state.scene.add(state.riverMesh1);
+
+  const riverGeo2 = new THREE.PlaneGeometry(riverWidth, riverLength, 1, 64);
+  const posAttr2 = riverGeo2.attributes.position;
+  for (let i = 0; i < posAttr2.count; i++) {
+    const lx = posAttr2.getX(i);
+    const ly = posAttr2.getY(i);
+    const wz = -ly;
+    const wx = lx + (15.0 + 4.5 * Math.sin(wz * 0.13)) + 0.1;
+    const flatY = 0.09;  // slightly above globe surface
+    const h = GLOBE.radius + flatY;
+    const rel = new THREE.Vector3(wx, GLOBE.radius, wz + 0.1);
+    rel.normalize().multiplyScalar(h);
+    const spherePos = new THREE.Vector3().addVectors(GLOBE.center, rel);
+    posAttr2.setXYZ(i, spherePos.x, spherePos.y, spherePos.z);
+  }
+  riverGeo2.computeVertexNormals();
+
+  const riverMat2 = riverMat1.clone();
+  riverMat2.opacity = 0.75;
+  riverMat2.polygonOffset = true;
+  riverMat2.polygonOffsetFactor = -2;
+  riverMat2.polygonOffsetUnits = -2;
+  state.riverMesh2 = new THREE.Mesh(riverGeo2, riverMat2);
+  state.scene.add(state.riverMesh2);
 
   // 2. Procedural pine forest trees around the house (InstancedMesh for high performance)
-  const treeCount = 55;
+  const treeCount = 200;
   const trunkGeo = new THREE.CylinderGeometry(0.12, 0.16, 1.2, 8);
-  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.85 });
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x6b3d1e, roughness: 0.85 });
   const trunkInst = new THREE.InstancedMesh(trunkGeo, trunkMat, treeCount);
   trunkInst.castShadow = true;
   trunkInst.receiveShadow = true;
@@ -860,7 +1049,7 @@ export function createCelestialEnvironment() {
     new THREE.ConeGeometry(0.43, 1.0, 8),
     new THREE.ConeGeometry(0.31, 1.0, 8)
   ];
-  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1b4332, roughness: 0.9 });
+  const leavesMat = new THREE.MeshStandardMaterial({ color: 0x1a6b2e, roughness: 0.85 });  // richer green
   const coneInsts = coneGeos.map(geo => {
     const inst = new THREE.InstancedMesh(geo, leavesMat, treeCount);
     inst.castShadow = true;
@@ -870,29 +1059,83 @@ export function createCelestialEnvironment() {
 
   const treeDummy = new THREE.Object3D();
   for (let i = 0; i < treeCount; i++) {
-    let x = 0, z = 0;
+    let normal = new THREE.Vector3();
     while (true) {
-      x = (Math.random() - 0.5) * 64;
-      z = (Math.random() - 0.5) * 64;
-      const dist = Math.sqrt(x*x + z*z);
-      if (dist > 10.0 && dist < 32.0) {
-        if (Math.abs(x - (-20)) < 4.0 && Math.abs(z) < 8.0) continue; // runway path
-        const rDist = Math.sqrt(x*x + Math.pow(z - (-5), 2));
-        if (Math.abs(rDist - 22.0) < 2.0) continue; // track path
-        break;
-      }
+      // Pick random point on unit sphere
+      const u = Math.random();
+      const v = Math.random();
+      const theta = u * 2.0 * Math.PI;
+      const phi = Math.acos(2.0 * v - 1.0);
+      
+      const rx = Math.sin(phi) * Math.cos(theta);
+      const ry = Math.sin(phi) * Math.sin(theta);
+      const rz = Math.cos(phi);
+      
+      // Scale by globe radius to get surface point
+      const surfacePos = new THREE.Vector3(rx, ry, rz).multiplyScalar(GLOBE.radius);
+      
+      // Exclusion near house at top
+      const distToTop = surfacePos.distanceTo(new THREE.Vector3(0, 0, 0));
+      if (distToTop < 10.0) continue;
+      
+      // Near airport runway
+      const airportPos = new THREE.Vector3();
+      const h_air = GLOBE.radius - 0.04;
+      const rel_air = new THREE.Vector3(-20.0, GLOBE.radius, 0.0).normalize().multiplyScalar(h_air);
+      airportPos.addVectors(GLOBE.center, rel_air);
+      if (surfacePos.distanceTo(airportPos) < 14.0) continue;
+      
+      // Near railway station
+      const stationPos = new THREE.Vector3();
+      const h_stat = GLOBE.radius - 0.04;
+      const rel_stat = new THREE.Vector3(0.0, GLOBE.radius, -28.0).normalize().multiplyScalar(h_stat);
+      stationPos.addVectors(GLOBE.center, rel_stat);
+      if (surfacePos.distanceTo(stationPos) < 6.0) continue;
+
+      // Near dome observatory (dome: x = -15, z = 18)
+      const domePos = new THREE.Vector3();
+      const rel_dome = new THREE.Vector3(-15, GLOBE.radius, 18).normalize().multiplyScalar(GLOBE.radius);
+      domePos.addVectors(GLOBE.center, rel_dome);
+      if (surfacePos.distanceTo(domePos) < 5.0) continue;
+
+      // Near cabin (cabin: x = 18, z = -18)
+      const cabinPos = new THREE.Vector3();
+      const rel_cabin = new THREE.Vector3(18, GLOBE.radius, -18).normalize().multiplyScalar(GLOBE.radius);
+      cabinPos.addVectors(GLOBE.center, rel_cabin);
+      if (surfacePos.distanceTo(cabinPos) < 5.0) continue;
+
+      // Near windmill (windmill: x = 25, z = 10)
+      const windmillPos = new THREE.Vector3();
+      const rel_windmill = new THREE.Vector3(25, GLOBE.radius, 10).normalize().multiplyScalar(GLOBE.radius);
+      windmillPos.addVectors(GLOBE.center, rel_windmill);
+      if (surfacePos.distanceTo(windmillPos) < 4.0) continue;
+
+      // Near airport helipad (helipad: x = -16, z = -4)
+      const helipadPos = new THREE.Vector3();
+      const rel_helipad = new THREE.Vector3(-16, GLOBE.radius, -4).normalize().multiplyScalar(GLOBE.radius);
+      helipadPos.addVectors(GLOBE.center, rel_helipad);
+      if (surfacePos.distanceTo(helipadPos) < 4.0) continue;
+      
+      normal.set(rx, ry, rz);
+      break;
     }
     
-    // Position trunk (half-height offset = 0.6 since Cylinder origin is at center)
-    treeDummy.position.set(x, 0.55, z);
-    treeDummy.rotation.set(0, 0, 0);
-    treeDummy.scale.set(1, 1, 1);
+    // Position trunk using normal
+    const trunkHeight = 0.6;
+    const trunkPos = GLOBE.center.clone().add(normal.clone().multiplyScalar(GLOBE.radius + trunkHeight));
+    
+    treeDummy.position.copy(trunkPos);
+    const up = new THREE.Vector3(0, 1, 0);
+    const tiltQ = new THREE.Quaternion().setFromUnitVectors(up, normal);
+    treeDummy.quaternion.copy(tiltQ);
     treeDummy.updateMatrix();
     trunkInst.setMatrixAt(i, treeDummy.matrix);
-
+    
     // Position leaf cones
     for (let j = 0; j < 3; j++) {
-      treeDummy.position.set(x, 1.2 + j * 0.55, z);
+      const coneHeight = 1.2 + j * 0.55;
+      const conePos = GLOBE.center.clone().add(normal.clone().multiplyScalar(GLOBE.radius + coneHeight));
+      treeDummy.position.copy(conePos);
       treeDummy.updateMatrix();
       coneInsts[j].setMatrixAt(i, treeDummy.matrix);
     }
@@ -903,40 +1146,40 @@ export function createCelestialEnvironment() {
 
   // 3. Airport Terminal and Hangar Runway
   const runway = new THREE.Mesh(
-    new THREE.BoxGeometry(2.4, 0.015, 14.0),
-    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.85 })
+    new THREE.BoxGeometry(2.4, 0.12, 14.0),
+    new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })
   );
-  runway.position.set(-20, -0.04, 0);
+  projectObjectToGlobe(runway, -20.0, 0.06, 0.0);
   runway.receiveShadow = true;
-  runway.userData = { targetFocus: new THREE.Vector3(-20, -0.04, 0), focusName: 'airport' };
+  runway.userData = { targetFocus: runway.position.clone(), focusName: 'airport' };
   state.interactiveObjects.push(runway);
   state.scene.add(runway);
 
   for (let offset = -6.0; offset <= 6.0; offset += 3.0) {
     const line = new THREE.Mesh(
-      new THREE.BoxGeometry(0.08, 0.005, 0.8),
+      new THREE.BoxGeometry(0.08, 0.08, 0.8),
       new THREE.MeshBasicMaterial({ color: 0xffffff })
     );
-    line.position.set(-20, -0.03, offset);
+    projectObjectToGlobe(line, -20.0, 0.18, offset);
     state.scene.add(line);
   }
 
   // Runway Landing Lights (Green start, Red end)
   const greenLightMat = new THREE.MeshBasicMaterial({ color: 0x4ade80 });
   for (let xOffset of [-1.1, 1.1]) {
-    const gl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), greenLightMat);
-    gl.position.set(-20 + xOffset, -0.02, 6.5);
+    const gl = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), greenLightMat);
+    projectObjectToGlobe(gl, -20.0 + xOffset, 0.2, 6.5);
     state.scene.add(gl);
   }
   const redLightMat = new THREE.MeshBasicMaterial({ color: 0xf87171 });
   for (let xOffset of [-1.1, 1.1]) {
-    const rl = new THREE.Mesh(new THREE.SphereGeometry(0.04, 6, 6), redLightMat);
-    rl.position.set(-20 + xOffset, -0.02, -6.5);
+    const rl = new THREE.Mesh(new THREE.SphereGeometry(0.08, 6, 6), redLightMat);
+    projectObjectToGlobe(rl, -20.0 + xOffset, 0.2, -6.5);
     state.scene.add(rl);
   }
 
   const hangar = new THREE.Group();
-  hangar.position.set(-24, -0.04, -3);
+  projectObjectToGlobe(hangar, -24.0, 0.06, -3.0);
   const dome = new THREE.Mesh(
     new THREE.SphereGeometry(1.5, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
     new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4, metalness: 0.6 })
@@ -1075,30 +1318,43 @@ export function createCelestialEnvironment() {
     const tx = Math.cos(angle) * trackRadius;
     const tz = Math.sin(angle) * trackRadius + trackCenterZ;
     
-    tieDummy.position.set(tx, -0.045, tz);
-    tieDummy.rotation.set(0, -angle, 0);
-    tieDummy.scale.set(1, 1, 1);
+    projectObjectToGlobe(tieDummy, tx, -0.045, tz, -angle);
     tieDummy.updateMatrix();
     tieInst.setMatrixAt(i, tieDummy.matrix);
   }
   railwayGroup.add(tieInst);
 
   const railMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.8, roughness: 0.2 });
-  const railL = new THREE.Mesh(new THREE.TorusGeometry(trackRadius - 0.15, 0.012, 6, 64), railMat);
-  railL.rotation.x = Math.PI / 2;
-  railL.position.set(0, -0.038, trackCenterZ);
-  const railR = new THREE.Mesh(new THREE.TorusGeometry(trackRadius + 0.15, 0.012, 6, 64), railMat);
-  railR.rotation.x = Math.PI / 2;
-  railR.position.set(0, -0.038, trackCenterZ);
+  
+  const buildSegmentsRail = (radius: number) => {
+    const railGroup = new THREE.Group();
+    const segCount = 80;
+    const segLength = (2 * Math.PI * radius) / segCount;
+    const railGeo = new THREE.BoxGeometry(0.024, 0.024, segLength + 0.05);
+    
+    for (let i = 0; i < segCount; i++) {
+      const angle = (i / segCount) * Math.PI * 2;
+      const tx = Math.cos(angle) * radius;
+      const tz = Math.sin(angle) * radius + trackCenterZ;
+      
+      const segment = new THREE.Mesh(railGeo, railMat);
+      projectObjectToGlobe(segment, tx, -0.038, tz, -angle);
+      railGroup.add(segment);
+    }
+    return railGroup;
+  };
+
+  const railL = buildSegmentsRail(trackRadius - 0.15);
+  const railR = buildSegmentsRail(trackRadius + 0.15);
   railwayGroup.add(railL, railR);
   state.scene.add(railwayGroup);
 
   // Train Station Platform (With brick texture look, waiting bench, name sign, and waiting passengers!)
   const station = new THREE.Group();
-  station.position.set(0, -0.04, -28.0);
+  projectObjectToGlobe(station, 0, -0.04, -28.0, 0);
   const platform = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.08, 0.8), new THREE.MeshStandardMaterial({ color: 0x27272a, roughness: 0.8 }));
   platform.position.y = 0.04;
-  platform.userData = { targetFocus: new THREE.Vector3(0, -0.04, -28), focusName: 'railway' };
+  platform.userData = { targetFocus: station.position.clone(), focusName: 'railway' };
   state.interactiveObjects.push(platform);
   station.add(platform);
 
@@ -1229,4 +1485,117 @@ export function createCelestialEnvironment() {
     state.scene.add(carriage);
     state.trainCarriages.push(carriage);
   }
+
+  // =====================================================
+  // MOUNTAIN RANGES - projected cone clusters on globe
+  // =====================================================
+  const addMountainRange = (positions: [number, number, number, number][]) => {
+    const snowMat   = new THREE.MeshStandardMaterial({ color: 0xf0f4f0, roughness: 0.85 });
+    const rockMat   = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.9 });
+    const grassMat2 = new THREE.MeshStandardMaterial({ color: 0x2d6a3a, roughness: 0.9 });
+    positions.forEach(([wx, wz, size, rotation]) => {
+      const mountainGroup = new THREE.Group();
+      // Base grass mound
+      const baseMound = new THREE.Mesh(new THREE.ConeGeometry(size * 1.15, size * 0.5, 10), grassMat2);
+      baseMound.position.y = size * 0.18;
+      mountainGroup.add(baseMound);
+      // Main rock cone
+      const rockCone = new THREE.Mesh(new THREE.ConeGeometry(size, size * 1.8, 8), rockMat);
+      rockCone.position.y = size * 0.8;
+      mountainGroup.add(rockCone);
+      // Snow cap
+      const snowCap = new THREE.Mesh(new THREE.ConeGeometry(size * 0.38, size * 0.55, 7), snowMat);
+      snowCap.position.y = size * 1.7;
+      mountainGroup.add(snowCap);
+      projectObjectToGlobe(mountainGroup, wx, size * 0.4, wz, rotation);
+      state.scene.add(mountainGroup);
+    });
+  };
+
+  // Mountain range clusters at different globe positions
+  addMountainRange([
+    [-12, 8, 1.8, 0.0],   // Near house, large peak
+    [-14, 6, 1.2, 0.3],
+    [-10, 10, 1.4, -0.2],
+    [-11, 12, 0.9, 0.1],
+    [-13, 14, 1.1, -0.1],
+  ]);
+  addMountainRange([
+    [8,  -18, 2.0, 0.0],  // Far side of globe, opposite river
+    [10, -20, 1.4, 0.2],
+    [6,  -16, 1.6, -0.15],
+    [12, -18, 1.1, 0.1],
+    [7,  -22, 1.3, 0.05],
+  ]);
+  addMountainRange([
+    [22, 12, 1.5, 0.0],   // Near airport (on globe circumference)
+    [24, 10, 1.0, 0.2],
+    [20, 14, 1.2, -0.1],
+  ]);
+
+  // =====================================================
+  // DINOSAURS - simplified T-Rex silhouettes in forest
+  // =====================================================
+  const addDinosaur = (wx: number, wz: number, scale: number, color: number, rotation: number) => {
+    const dinoGroup = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.8 });
+
+    // Body (large oval)
+    const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22 * scale, 0.45 * scale, 6, 8), bodyMat);
+    body.rotation.z = Math.PI / 2;
+    body.position.y = 0.38 * scale;
+    dinoGroup.add(body);
+
+    // Neck
+    const neck = new THREE.Mesh(new THREE.CapsuleGeometry(0.1 * scale, 0.25 * scale, 4, 6), bodyMat);
+    neck.rotation.z = Math.PI / 4;
+    neck.position.set(0.22 * scale, 0.65 * scale, 0);
+    dinoGroup.add(neck);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.35 * scale, 0.16 * scale, 0.18 * scale), bodyMat);
+    head.position.set(0.48 * scale, 0.82 * scale, 0);
+    dinoGroup.add(head);
+
+    // Jaw
+    const jaw = new THREE.Mesh(new THREE.BoxGeometry(0.28 * scale, 0.07 * scale, 0.14 * scale), bodyMat);
+    jaw.position.set(0.5 * scale, 0.7 * scale, 0);
+    dinoGroup.add(jaw);
+
+    // Eye
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.025 * scale, 5, 5), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+    eye.position.set(0.58 * scale, 0.88 * scale, 0.08 * scale);
+    dinoGroup.add(eye);
+
+    // Tail
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.1 * scale, 0.55 * scale, 6), bodyMat);
+    tail.rotation.z = -Math.PI * 0.55;
+    tail.position.set(-0.52 * scale, 0.26 * scale, 0);
+    dinoGroup.add(tail);
+
+    // Legs (2 visible)
+    const legGeo = new THREE.CapsuleGeometry(0.07 * scale, 0.28 * scale, 4, 6);
+    const legF = new THREE.Mesh(legGeo, bodyMat);
+    legF.position.set(0.12 * scale, 0.08 * scale, 0.1 * scale);
+    dinoGroup.add(legF);
+    const legB = new THREE.Mesh(legGeo, bodyMat);
+    legB.position.set(-0.14 * scale, 0.08 * scale, -0.08 * scale);
+    dinoGroup.add(legB);
+
+    // Tiny arms
+    const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.04 * scale, 0.14 * scale, 4, 5), bodyMat);
+    arm.rotation.z = Math.PI / 3;
+    arm.position.set(0.28 * scale, 0.5 * scale, 0.07 * scale);
+    dinoGroup.add(arm);
+
+    projectObjectToGlobe(dinoGroup, wx, 0.05, wz, rotation);
+    state.scene.add(dinoGroup);
+  };
+
+  // Place 5 dinosaurs scattered around the forest area
+  addDinosaur(10,   8,   1.1, 0x3d7a35, 0.4);    // Forest right of house
+  addDinosaur(12,   12,  0.85, 0x4a6741, -0.2);
+  addDinosaur(14,   6,   0.95, 0x2d5e2a, 0.8);
+  addDinosaur(8,    14,  1.2,  0x5a7a35, -0.5);  // Larger dino deeper in forest
+  addDinosaur(16,   10,  0.7,  0x3a6a30, 0.1);   // Baby dinosaur
 }
