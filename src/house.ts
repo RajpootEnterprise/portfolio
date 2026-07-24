@@ -252,7 +252,13 @@ export function createHouseStructure() {
   state.houseGroup.add(state.elevator);
 
   // 4. Solid Room Walls, Columns & Panoramic Glass Facades
-  const wallMat = new THREE.MeshStandardMaterial({ color: COLORS.wallPlaster, roughness: 0.95 });
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: COLORS.wallPlaster,
+    roughness: 0.95,
+    transparent: true,
+    opacity: 0.35,
+    depthWrite: false
+  });
   const columnMat = new THREE.MeshStandardMaterial({ color: 0x2b251f, roughness: 0.45, metalness: 0.2 }); 
   const frameMat = new THREE.MeshStandardMaterial({ color: 0x1e2022, roughness: 0.4, metalness: 0.8 }); 
 

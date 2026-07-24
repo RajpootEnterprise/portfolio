@@ -73,8 +73,9 @@ body, html {
   padding: 30px;
 }
 
-/* Interactive UI components */
-.main-header, .content-container, .main-footer, .btn, .nav-btn, .project-card, .contact-form input, .contact-form textarea, .contact-form button, .theme-toggle {
+/* Only interactive leaf elements capture pointer events - containers pass-through to 3D canvas */
+.btn, .nav-btn, .project-card, .contact-form input, .contact-form textarea, .contact-form button, .theme-toggle,
+.navbar, .logo-link, .theme-toggle-btn {
   pointer-events: all;
 }
 
@@ -192,13 +193,17 @@ body.dark-theme .theme-toggle:hover {
 .content-container {
   position: relative;
   flex-grow: 1;
-  width: 450px;
-  max-width: 100%;
+  width: 750px;
+  max-width: 90%;
   margin-top: 20px;
   margin-bottom: 20px;
+  margin-left: auto;
+  margin-right: auto;
   height: calc(100% - 140px);
   display: flex;
   align-items: center;
+  justify-content: center;
+  pointer-events: none; /* Pass-through: let 3D canvas receive drag/scroll events */
 }
 
 .info-card {
@@ -213,9 +218,8 @@ body.dark-theme .theme-toggle:hover {
   box-shadow: var(--shadow);
   padding: 40px;
   opacity: 0;
-  transform: translateY(20px);
+  display: none; /* Instant load */
   pointer-events: none;
-  transition: opacity 0.5s ease, transform 0.5s ease, background-color 0.8s ease, border-color 0.5s ease;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(61, 64, 91, 0.2) transparent;
@@ -231,7 +235,7 @@ body.dark-theme .theme-toggle:hover {
 
 .info-card.active {
   opacity: 1;
-  transform: translateY(0);
+  display: block;
   pointer-events: all;
   z-index: 5;
 }
@@ -771,17 +775,16 @@ body.dark-theme .success-message {
     border-radius: 20px;
     padding: 22px;
     box-shadow: var(--shadow);
-    transform: translateY(30px);
     opacity: 0;
+    display: none;
     pointer-events: none;
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
   }
 
   .info-card.active {
     opacity: 1;
-    transform: translateY(0);
+    display: block;
     pointer-events: all;
   }
 
@@ -1974,4 +1977,34 @@ body.dark-theme .widget-btn-room {
     from { opacity: 0; transform: translateY(16px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+}
+
+/* Close Button for Details Panels */
+.card-close-btn {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: all 0.2s ease;
+  z-index: 10;
+}
+body.dark-theme .card-close-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.card-close-btn:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
 }
