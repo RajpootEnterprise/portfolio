@@ -2,10 +2,32 @@ import './style.css';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import gsap from 'gsap';
-import { Avatar } from './avatar';
-import { HEIGHTS, COLORS, roomPositions, cameraViews, projectDetails, planetDestinations } from './constants';
+
+import { HEIGHTS, COLORS, roomPositions, cameraViews, projectDetails, planetDestinations, GLOBE } from './constants';
 import { state } from './state';
 import { createHouseStructure } from './house';
+import { createGlobeStructures } from './globeStructures';
+
+function projectFlyingObject(obj: THREE.Object3D, fx: number, fy: number, fz: number, nfx: number, nfy: number, nfz: number) {
+  const h = GLOBE.radius + fy;
+  const rel = new THREE.Vector3(fx, GLOBE.radius, fz);
+  rel.normalize().multiplyScalar(h);
+  const spherePos = new THREE.Vector3().addVectors(GLOBE.center, rel);
+  obj.position.copy(spherePos);
+  
+  const nh = GLOBE.radius + nfy;
+  const nrel = new THREE.Vector3(nfx, GLOBE.radius, nfz);
+  nrel.normalize().multiplyScalar(nh);
+  const targetSpherePos = new THREE.Vector3().addVectors(GLOBE.center, nrel);
+  
+  const up = spherePos.clone().sub(GLOBE.center).normalize();
+  const forward = targetSpherePos.clone().sub(spherePos).normalize();
+  const right = new THREE.Vector3().crossVectors(forward, up).normalize();
+  const adjustedForward = new THREE.Vector3().crossVectors(up, right).normalize();
+  
+  const m = new THREE.Matrix4().makeBasis(right, up, adjustedForward.multiplyScalar(-1));
+  obj.quaternion.setFromRotationMatrix(m);
+}
 import { createRoomProps } from './props';
 import {
   setupLights,
@@ -245,12 +267,19 @@ function init() {
   state.scene = new THREE.Scene();
   state.scene.background = new THREE.Color(0xfaf8f5);
 
-  // Camera - INITIAL START ZOOMED OUT (Framing the entire 3-story house)
+  // Camera - positioned outside the globe (radius=35, center=(0,-35.05,0)), top of globe ~y=0
+  // Distance from globe center must be > GLOBE.radius (35) to be outside the sphere
   const isMobileInit = window.innerWidth < 768;
-  const initCamMult = isMobileInit ? 1.65 : 1.0;
   const startFov = (window.innerWidth / window.innerHeight) < 1.0 ? 56 : 42;
-  state.camera = new THREE.PerspectiveCamera(startFov, window.innerWidth / window.innerHeight, 0.1, 120);
-  state.camera.position.set(-16.5 * initCamMult, 12.0 * initCamMult, 19.5 * initCamMult); // Zoomed out view
+  // Camera at ~75 units from globe center (75 > 35 radius = outside globe)
+  const CAM_DISTANCE_FROM_CENTER = isMobileInit ? 100 : 75;
+  state.camera = new THREE.PerspectiveCamera(startFov, window.innerWidth / window.innerHeight, 0.1, 800);
+  // Position camera above the globe looking toward globe center
+  state.camera.position.set(
+    GLOBE.center.x,
+    GLOBE.center.y + CAM_DISTANCE_FROM_CENTER,
+    GLOBE.center.z + 40
+  );
 
   // Renderer
   state.renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -261,24 +290,25 @@ function init() {
   state.renderer.toneMappingExposure = 1.0;
   container.appendChild(state.renderer.domElement);
 
-  // Controls - INITIAL ORBIT TARGET CENTERED ON THE ENTIRE HOUSE (Y = 2.2 midpoint)
+  // Controls - orbit target is the GLOBE CENTER so rotation circles the whole globe
   state.controls = new OrbitControls(state.camera, state.renderer.domElement);
   state.controls.enableDamping = true;
-  state.controls.dampingFactor = 0.05;
-  state.controls.target.set(0.0, 3.2, 0.0); // Center on middle floor crossroads
+  state.controls.dampingFactor = 0.06;
+  state.controls.target.copy(GLOBE.center); // Globe center = (0, -35.05, 0)
 
-  // Enable 1-finger rotate on mobile touch controls explicitly
+  // Enable touch controls
   state.controls.touches = {
     ONE: THREE.TOUCH.ROTATE,
     TWO: THREE.TOUCH.DOLLY_PAN
   };
-  
-  // Angle limits (constrain orbit views)
-  state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
-  state.controls.minDistance = 5;
-  state.controls.maxDistance = 85;
 
-  // Disable Auto-Rotation by default to satisfy manual-only rotation requirement
+  // Full 360-degree orbit: no polar angle restrictions, generous zoom range
+  state.controls.minPolarAngle = 0;
+  state.controls.maxPolarAngle = Math.PI;
+  state.controls.minDistance = GLOBE.radius + 2.0;  // don't let camera go inside globe
+  state.controls.maxDistance = 250.0;               // zoom way out to see globe in space
+
+  // Disable Auto-Rotation
   state.controls.autoRotate = false;
   state.controls.autoRotateSpeed = 0.4;
 
@@ -323,15 +353,10 @@ function init() {
   createHelipad();
   createHelicopter();
   createSpaceCity();
+  createGlobeStructures();
 
-  // Instantiate Avatar
-  state.avatar = new Avatar();
-  // Start sitting on the Ground Floor Home sofa
-  const homePos = roomPositions.home;
-  state.avatar.position.copy(homePos.action);
-  state.avatar.rotation.y = homePos.faceDirection;
-  state.avatar.setState('sitting');
-  state.scene.add(state.avatar);
+  // Avatar removed
+  state.avatar = null;
 
   // Bind Events & Toggles
   setupEvents();
@@ -371,12 +396,7 @@ function init() {
 // Navigation & Path Routing (Stable Theta & Phi Glides)
 // ----------------------------------------------------
 function navigateToRoom(targetRoomName: string) {
-  if (state.isTransitioning || targetRoomName === state.currentRoom) return;
-  state.isTransitioning = true;
-
-  // Mobile portrait layout Y offset
-  const isMobile = window.innerWidth / window.innerHeight < 1.0;
-  const yOffset = isMobile ? 0.75 : 0.0;
+  if (targetRoomName === state.currentRoom) return;
 
   // Stop auto rotation immediately
   state.controls.autoRotate = false;
@@ -406,118 +426,10 @@ function navigateToRoom(targetRoomName: string) {
   const labelEl = document.getElementById('current-room-text');
   if (labelEl) labelEl.textContent = roomNames[targetRoomName];
 
-  const targetView = cameraViews[targetRoomName];
+  state.currentRoom = targetRoomName;
+  state.isTransitioning = false;
 
-  const newTargetY = targetView.target.y + yOffset;
-
-  const startRoom = state.currentRoom;
-  const startPos = startRoom === 'overview' ? roomPositions['home'] : roomPositions[startRoom];
-  const targetPos = roomPositions[targetRoomName];
-  const hA = startPos.h;
-  const hB = targetPos.h;
-
-  const tl = gsap.timeline({
-    onComplete: () => {
-      onArrival(targetRoomName);
-    }
-  });
-
-  // Set avatar to walking
-  state.avatar.setState('walking');
-
-  // Stride travel speed (snappy runs!)
-  const strideVelocity = 9.5; 
-
-  const isStartLeft = startPos.stand.x < 0;
-  const startEntranceX = isStartLeft ? -1.0 : 1.0;
-  const startEntrance = new THREE.Vector3(startEntranceX, hA + 0.285, 0);
-
-  // Turn to entrance
-  const angle1 = Math.atan2(startEntrance.x - state.avatar.position.x, startEntrance.z - state.avatar.position.z);
-  tl.to(state.avatar.rotation, { y: angle1, duration: 0.1 });
-
-  // Walk to entrance
-  const dist1 = state.avatar.position.distanceTo(startEntrance);
-  tl.to(state.avatar.position, { x: startEntrance.x, y: startEntrance.y, z: startEntrance.z, duration: dist1 / strideVelocity, ease: 'none' });
-
-  // If changing floors (requires Elevator trip):
-  if (hA !== hB) {
-    const boardPos = new THREE.Vector3(0, hA + 0.285, 0);
-    
-    // Board elevator
-    const angle2 = Math.atan2(boardPos.x - state.avatar.position.x, boardPos.z - state.avatar.position.z);
-    tl.to(state.avatar.rotation, { y: angle2, duration: 0.08 });
-    tl.to(state.avatar.position, { x: boardPos.x, y: boardPos.y, z: boardPos.z, duration: 0.15, ease: 'none' });
-
-    // Stand still inside elevator
-    tl.add(() => state.avatar.setState('idle'));
-
-    // Move elevator cabin & avatar vertically in sync
-    tl.to(state.elevator.position, {
-      y: hB + 0.01,
-      duration: 0.7,
-      ease: 'power1.inOut'
-    }, '+=0.05');
-    tl.to(state.avatar.position, {
-      y: hB + 0.285,
-      duration: 0.7,
-      ease: 'power1.inOut'
-    }, '<');
-
-    // Only pan the orbit target — DO NOT touch camera.position so the house stays
-    // exactly as the user oriented it (no auto-tilt when changing floors via tabs)
-    tl.to(state.controls.target, {
-      x: targetView.target.x,
-      y: newTargetY,
-      z: targetView.target.z,
-      duration: 0.8,
-      ease: 'power2.inOut',
-      onUpdate: () => state.controls.update()
-    }, '<');
-
-    // Return to walking
-    tl.add(() => state.avatar.setState('walking'));
-
-    // Exit elevator
-    const isTargetLeft = targetPos.stand.x < 0;
-    const targetEntranceX = isTargetLeft ? -1.0 : 1.0;
-    const targetEntrance = new THREE.Vector3(targetEntranceX, hB + 0.285, 0);
-
-    const angle3 = Math.atan2(targetEntrance.x - state.avatar.position.x, targetEntrance.z - state.avatar.position.z);
-    tl.to(state.avatar.rotation, { y: angle3, duration: 0.08 });
-    tl.to(state.avatar.position, { x: targetEntrance.x, y: targetEntrance.y, z: targetEntrance.z, duration: 0.15, ease: 'none' });
-
-    // Walk to target stand point
-    const angle4 = Math.atan2(targetPos.stand.x - state.avatar.position.x, targetPos.stand.z - state.avatar.position.z);
-    tl.to(state.avatar.rotation, { y: angle4, duration: 0.08 });
-    const dist2 = targetEntrance.distanceTo(targetPos.stand);
-    tl.to(state.avatar.position, { x: targetPos.stand.x, y: targetPos.stand.y, z: targetPos.stand.z, duration: dist2 / strideVelocity, ease: 'none' });
-
-  } else {
-    // Same floor travel
-    const angle3 = Math.atan2(targetPos.stand.x - state.avatar.position.x, targetPos.stand.z - state.avatar.position.z);
-    tl.to(state.avatar.rotation, { y: angle3, duration: 0.1 });
-    const dist2 = state.avatar.position.distanceTo(targetPos.stand);
-    tl.to(state.avatar.position, { x: targetPos.stand.x, y: targetPos.stand.y, z: targetPos.stand.z, duration: dist2 / strideVelocity, ease: 'none' });
-
-    // Only pan the orbit target — leave camera.position untouched (no house tilt)
-    tl.to(state.controls.target, {
-      x: targetView.target.x,
-      y: newTargetY,
-      z: targetView.target.z,
-      duration: 0.65,
-      ease: 'power2.inOut',
-      onUpdate: () => state.controls.update()
-    }, '<');
-  }
-
-  // Walk to room's action spot
-  if (targetPos.action && targetPos.action !== targetPos.stand) {
-    const angle5 = Math.atan2(targetPos.action.x - state.avatar.position.x, targetPos.action.z - state.avatar.position.z);
-    tl.to(state.avatar.rotation, { y: angle5, duration: 0.08 });
-    const dist3 = targetPos.stand.distanceTo(targetPos.action);
-    tl.to(state.avatar.position, { x: targetPos.action.x, y: targetPos.action.y, z: targetPos.action.z, duration: dist3 / strideVelocity, ease: 'none' });
-  }
+  onArrival(targetRoomName);
 }
 
 // Arrival Actions
@@ -525,27 +437,11 @@ function onArrival(targetRoomName: string) {
   state.currentRoom = targetRoomName;
   state.isTransitioning = false;
 
-  // Set avatar to proper action states
-  if (targetRoomName === 'home') {
-    state.avatar.setState('sitting');
-  } else if (targetRoomName === 'about') {
-    state.avatar.setState('typing');
-  } else if (targetRoomName === 'timeline') {
-    state.avatar.setState('sitting');
-  } else if (targetRoomName === 'skills') {
-    state.avatar.setState('typing'); // Playing arcade joysticks
-  } else if (targetRoomName === 'contact') {
-    state.avatar.setState('waving');
-  } else {
-    state.avatar.setState('idle');
-  }
-
-  // Set close room inspection limits (enables 360-degree close room tour!)
-  // Max distance set to 21.0 so users can zoom out to 20.0. Zooming past 20.0 exits to overview.
-  state.controls.minDistance = 3.0;
-  state.controls.maxDistance = 21.0;
-  state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
-  state.controls.minPolarAngle = Math.PI / 2 - 0.55;
+  // Set camera limits - keep outside the globe surface
+  state.controls.minDistance = GLOBE.radius + 2.0;
+  state.controls.maxDistance = 250.0;
+  state.controls.maxPolarAngle = Math.PI;
+  state.controls.minPolarAngle = 0;
   state.controls.update();
 
   // Animate Mailbox flag if landing on contact Patio Garden
@@ -567,7 +463,6 @@ function onArrival(targetRoomName: string) {
 // ----------------------------------------------------
 function exitRoomToOverview() {
   if (state.isTransitioning) return;
-  state.isTransitioning = true;
   
   // Fade out active room content card
   const activeCard = document.querySelector('.info-card.active');
@@ -585,27 +480,15 @@ function exitRoomToOverview() {
     state.avatar.setState('waving');
   }
 
-  // Smooth camera reset transition back to default overview coordinates
-  gsap.to(state.camera.position, { x: -16.5, y: 12.0, z: 19.5, duration: 1.2, ease: 'power2.out' });
-  gsap.to(state.controls.target, { 
-    x: 0.0, 
-    y: 2.2, 
-    z: 0.0, 
-    duration: 1.2, 
-    ease: 'power2.out', 
-    onUpdate: () => state.controls.update(),
-    onComplete: () => {
-      state.currentRoom = 'overview';
-      state.isTransitioning = false;
-      
-      // Restore overview camera constraints
-      state.controls.minDistance = 5;
-      state.controls.maxDistance = 85;
-      state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
-      state.controls.minPolarAngle = 0;
-      state.controls.update();
-    }
-  });
+  state.currentRoom = 'overview';
+  state.isTransitioning = false;
+  
+  // Restore overview camera constraints - always outside the globe
+  state.controls.minDistance = GLOBE.radius + 2.0;
+  state.controls.maxDistance = 250.0;
+  state.controls.maxPolarAngle = Math.PI;
+  state.controls.minPolarAngle = 0;
+  state.controls.update();
 }
 
 // ----------------------------------------------------
@@ -731,6 +614,19 @@ function toggleTheme() {
 // UI Bindings & Raycasting
 // ----------------------------------------------------
 function setupEvents() {
+  // Add close button to all room info cards
+  document.querySelectorAll('.info-card').forEach(card => {
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'card-close-btn';
+    closeBtn.innerHTML = '✕';
+    closeBtn.title = 'Close and explore';
+    closeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      exitRoomToOverview();
+    });
+    card.appendChild(closeBtn);
+  });
+
   const menuToggleBtn = document.getElementById('menu-toggle-btn');
   const navbarEl = document.querySelector('.navbar');
 
@@ -881,6 +777,36 @@ function setupEvents() {
   state.renderer.domElement.addEventListener('click', onCanvasClick);
   state.renderer.domElement.addEventListener('mousemove', onCanvasMouseMove);
 
+  // Zoom towards mouse pointer logic (Zoom-to-cursor)
+  state.renderer.domElement.addEventListener('wheel', (e) => {
+    if (state.isSpaceTrip || state.isTransitioning) return;
+    
+    // Zooming IN (e.deltaY < 0) -> Zoom to cursor
+    if (e.deltaY < 0) {
+      state.raycaster.setFromCamera(state.mouse, state.camera);
+      const intersects = state.raycaster.intersectObjects(state.scene.children, true);
+      const validHits = intersects.filter(hit => hit.object.type !== 'Points' && hit.distance < 110);
+      if (validHits.length > 0) {
+        const hitPoint = validHits[0].point;
+        state.controls.target.lerp(hitPoint, 0.12);
+      }
+    }
+
+    // Zooming OUT (e.deltaY > 0) -> Lerp target back to globe center & check exit room
+    if (e.deltaY > 0) {
+      state.controls.target.lerp(GLOBE.center, 0.12);
+      
+      if (state.currentRoom !== 'overview') {
+        setTimeout(() => {
+          const dist = state.camera.position.distanceTo(GLOBE.center);
+          if (dist > GLOBE.radius + 22.0) {
+            exitRoomToOverview();
+          }
+        }, 50);
+      }
+    }
+  }, { passive: true });
+
   // Controls start/end hooks
   state.controls.addEventListener('start', () => {
     state.controls.autoRotate = false;
@@ -927,16 +853,22 @@ function setupEvents() {
         state.avatar.setState('waving');
       }
 
-      state.controls.minDistance = 5;
-      state.controls.maxDistance = 85;
-      state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
+      state.controls.minDistance = GLOBE.radius + 2.0;
+      state.controls.maxDistance = 250.0;
+      state.controls.maxPolarAngle = Math.PI;
       state.controls.minPolarAngle = 0;
 
-      gsap.to(state.camera.position, { x: -16.5, y: 12.0, z: 19.5, duration: 1.5, ease: 'power2.inOut' });
+      // Animate camera back to a good outside-globe overview position
+      const overviewPos = new THREE.Vector3(
+        GLOBE.center.x,
+        GLOBE.center.y + 75,
+        GLOBE.center.z + 40
+      );
+      gsap.to(state.camera.position, { x: overviewPos.x, y: overviewPos.y, z: overviewPos.z, duration: 1.5, ease: 'power2.inOut' });
       gsap.to(state.controls.target, { 
-        x: 0.0, 
-        y: 2.2, 
-        z: 0.0, 
+        x: GLOBE.center.x, 
+        y: GLOBE.center.y, 
+        z: GLOBE.center.z, 
         duration: 1.5, 
         ease: 'power2.inOut', 
         onUpdate: () => state.controls.update() 
@@ -979,14 +911,13 @@ function onCanvasClick(event: MouseEvent) {
 
   if (intersects.length > 0) {
     let obj: THREE.Object3D | null = intersects[0].object;
-    let handled = false;
     
     while (obj) {
       if (obj.userData && obj.userData.targetFocus) {
-        handled = true;
         const targetPos = obj.userData.targetFocus;
         state.isTransitioning = true;
         state.controls.autoRotate = false;
+        state.currentRoom = obj.userData.focusName || 'airport';
         
         gsap.to(state.controls.target, {
           x: targetPos.x,
@@ -1009,8 +940,8 @@ function onCanvasClick(event: MouseEvent) {
           ease: 'power2.out',
           onComplete: () => {
             state.isTransitioning = false;
-            state.controls.minDistance = 2.0;
-            state.controls.maxDistance = 85.0;
+            state.controls.minDistance = GLOBE.radius + 2.0;
+            state.controls.maxDistance = 250.0;
             state.controls.update();
           }
         });
@@ -1018,41 +949,12 @@ function onCanvasClick(event: MouseEvent) {
       }
 
       if (obj.userData && obj.userData.roomName) {
-        handled = true;
-        const roomName = obj.userData.roomName;
-        navigateToRoom(roomName);
+        navigateToRoom(obj.userData.roomName);
         break;
       }
       obj = obj.parent;
     }
-
-    if (!handled) {
-      const houseCenter = new THREE.Vector3(0, 3.2, 0);
-      if (state.controls.target.distanceTo(houseCenter) > 8.0) {
-        state.isTransitioning = true;
-        gsap.to(state.controls.target, {
-          x: houseCenter.x,
-          y: houseCenter.y,
-          z: houseCenter.z,
-          duration: 1.5,
-          ease: 'power2.out',
-          onUpdate: () => state.controls.update()
-        });
-        gsap.to(state.camera.position, {
-          x: -16.5,
-          y: 12.0,
-          z: 19.5,
-          duration: 1.5,
-          ease: 'power2.out',
-          onComplete: () => {
-            state.isTransitioning = false;
-            state.controls.minDistance = 5.0;
-            state.controls.maxDistance = 85.0;
-            state.controls.update();
-          }
-        });
-      }
-    }
+    // No auto-fly on empty clicks - user is free to orbit the globe manually
   }
 }
 
@@ -1139,13 +1041,7 @@ function animate(time: number) {
     }
   });
 
-  // Scroll Zoom-out to Overview threshold check (raised to 30 so panel stays open while zooming)
-  if (!state.isSpaceTrip && !state.isTransitioning && state.currentRoom !== 'overview') {
-    const dist = state.camera.position.distanceTo(state.controls.target);
-    if (dist > 30.0) {
-      exitRoomToOverview();
-    }
-  }
+
 
   // Update controls
   state.controls.update();
@@ -1159,6 +1055,17 @@ function animate(time: number) {
   if (state.helicopter && state.mainRotor && state.tailRotor) {
     state.mainRotor.rotation.y += state.rotorSpeed;
     state.tailRotor.rotation.z += state.rotorSpeed * 1.8;
+  }
+
+  // Spin windmill blades
+  if (state.windmillBlades) {
+    state.windmillBlades.rotation.z += 0.012;
+  }
+
+  // Animate river currents
+  if (state.riverMesh1 && state.riverMesh2) {
+    state.riverMesh1.position.z = Math.sin(seconds * 0.5) * 0.15;
+    state.riverMesh2.position.z = Math.cos(seconds * 0.5) * 0.15;
   }
 
   // Fireplace log glowing flame flicker in dark mode
@@ -1252,31 +1159,27 @@ function animate(time: number) {
       // Descent
       const tz = 16 - 10 * frac;
       const ty = 8 - 8 * frac;
-      state.planeMesh1.position.set(runwayX, ty + runwayY, tz);
-      state.planeMesh1.lookAt(runwayX, runwayY, 6);
+      projectFlyingObject(state.planeMesh1, runwayX, ty + runwayY, tz, runwayX, runwayY, 6);
     } else if (phase === 1) {
       // Roll
       const tz = 6 - 12 * frac;
-      state.planeMesh1.position.set(runwayX, runwayY, tz);
-      state.planeMesh1.lookAt(runwayX, runwayY, -7);
+      projectFlyingObject(state.planeMesh1, runwayX, runwayY, tz, runwayX, runwayY, -7);
     } else if (phase === 2) {
       // Climb
       const tz = -6 - 10 * frac;
       const ty = 0 + 8 * frac;
-      state.planeMesh1.position.set(runwayX, ty + runwayY, tz);
-      state.planeMesh1.lookAt(runwayX, ty + runwayY + 1.0, tz - 2.0);
+      projectFlyingObject(state.planeMesh1, runwayX, ty + runwayY, tz, runwayX, ty + runwayY + 1.0, tz - 2.0);
     } else {
       // Orbit sky
       const angle = Math.PI + frac * Math.PI;
       const radius = 21;
       const cx = runwayX + Math.sin(angle) * radius;
       const cz = -5 + Math.cos(angle) * radius;
-      state.planeMesh1.position.set(cx, 8 + runwayY, cz);
       
       const nextAngle = angle + 0.02;
       const nx = runwayX + Math.sin(nextAngle) * radius;
       const nz = -5 + Math.cos(nextAngle) * radius;
-      state.planeMesh1.lookAt(nx, 8 + runwayY, nz);
+      projectFlyingObject(state.planeMesh1, cx, 8 + runwayY, cz, nx, 8 + runwayY, nz);
     }
   }
 
@@ -1287,12 +1190,11 @@ function animate(time: number) {
     const px = Math.cos(angle) * radius;
     const pz = Math.sin(angle) * radius - 5;
     const py = 15;
-    state.planeMesh2.position.set(px, py, pz);
     
     const nextAngle = angle + 0.02;
     const nx = Math.cos(nextAngle) * radius;
     const nz = Math.sin(nextAngle) * radius - 5;
-    state.planeMesh2.lookAt(nx, py, nz);
+    projectFlyingObject(state.planeMesh2, px, py, pz, nx, py, nz);
   }
 
   // 3. Train Circular Loop Movement & Railway Station Platform Stop
@@ -1344,23 +1246,21 @@ function animate(time: number) {
     
     const tx = Math.cos(state.trainAngle) * trackRadius;
     const tz = Math.sin(state.trainAngle) * trackRadius + trackCenterZ;
-    state.trainGroup.position.set(tx, -0.04, tz);
     
     const nextT = state.trainAngle + 0.05;
     const ntx = Math.cos(nextT) * trackRadius;
     const ntz = Math.sin(nextT) * trackRadius + trackCenterZ;
-    state.trainGroup.lookAt(ntx, -0.04, ntz);
+    projectFlyingObject(state.trainGroup, tx, -0.04, tz, ntx, -0.04, ntz);
     
     state.trainCarriages.forEach((carriage, idx) => {
       const cAngle = state.trainAngle - (idx + 1) * 0.16;
       const cx = Math.cos(cAngle) * trackRadius;
       const cz = Math.sin(cAngle) * trackRadius + trackCenterZ;
-      carriage.position.set(cx, -0.04, cz);
       
       const cNext = cAngle + 0.05;
       const cnx = Math.cos(cNext) * trackRadius;
       const cnz = Math.sin(cNext) * trackRadius + trackCenterZ;
-      carriage.lookAt(cnx, -0.04, cnz);
+      projectFlyingObject(carriage, cx, -0.04, cz, cnx, -0.04, cnz);
     });
   }
 
@@ -1591,46 +1491,23 @@ function flyToPlanet(projectId: number) {
     }
   });
 
-  // 0. Boarding: Avatar stands up and glides up directly into the cockpit
-  tl.add(() => {
-    state.avatar.setState('walking');
-  });
 
-  const cockpitWorldPos = new THREE.Vector3(-3.75, HEIGHTS.second + 3.56 + 0.1, 0.2);
 
-  tl.to(state.avatar.position, {
-    x: cockpitWorldPos.x,
-    y: cockpitWorldPos.y,
-    z: cockpitWorldPos.z,
-    duration: 1.5,
-    ease: 'power2.inOut'
-  });
+  // 1. Takeoff (radial lift-off along surface normal)
+  const startHelicopterPos = state.helicopter.position.clone();
+  const upDir = startHelicopterPos.clone().sub(GLOBE.center).normalize();
+  const takeoffPos = startHelicopterPos.clone().add(upDir.multiplyScalar(6.8));
 
-  tl.to(state.avatar.scale, {
-    x: 0.22,
-    y: 0.22,
-    z: 0.22,
-    duration: 1.5,
-    ease: 'power2.inOut'
-  }, '<');
-
-  tl.add(() => {
-    state.helicopter.add(state.avatar);
-    state.avatar.position.set(0.12, 0.08, 0.22); // Relative position inside helicopter canopy
-    state.avatar.scale.set(0.24, 0.24, 0.24); // Micro size
-    state.avatar.rotation.set(0, Math.PI, 0); // Face forward relative to helicopter frame
-    state.avatar.setState('sitting');
-  });
-
-  // 1. Takeoff (Increased takeoff altitude for taller rooms)
   tl.to(state.helicopter.position, {
-    y: HEIGHTS.second + 6.8,
+    x: takeoffPos.x,
+    y: takeoffPos.y,
+    z: takeoffPos.z,
     duration: 1.6,
     ease: 'power1.inOut'
   });
 
   // 2. Rotate & Tilt
-  const angleToPlanet = Math.atan2(targetLandingPos.x - (-3.75), targetLandingPos.z - 0);
+  const angleToPlanet = Math.atan2(targetLandingPos.x - startHelicopterPos.x, targetLandingPos.z - startHelicopterPos.z);
   tl.to(state.helicopter.rotation, {
     y: angleToPlanet,
     x: 0.25,
@@ -1792,9 +1669,15 @@ function returnToEarth() {
     });
   }
 
-  const angleToHouse = Math.atan2(-3.75 - targetLandingPos.x, 0 - targetLandingPos.z);
+  const landPos = new THREE.Vector3();
+  const h_l = GLOBE.radius + 0.32;
+  const rel_l = new THREE.Vector3(-16.0, GLOBE.radius, -4.0);
+  rel_l.normalize().multiplyScalar(h_l);
+  landPos.addVectors(GLOBE.center, rel_l);
+
+  const angleToAirport = Math.atan2(landPos.x - targetLandingPos.x, landPos.z - targetLandingPos.z);
   gsap.to(state.helicopter.rotation, {
-    y: angleToHouse,
+    y: angleToAirport,
     x: 0.25,
     duration: 1.0,
     ease: 'power1.inOut',
@@ -1804,7 +1687,9 @@ function returnToEarth() {
   const tl = gsap.timeline({
     onComplete: () => {
       gsap.to(state.helicopter.position, {
-        y: HEIGHTS.second + 3.56,
+        x: landPos.x,
+        y: landPos.y,
+        z: landPos.z,
         duration: 1.8,
         ease: 'power1.inOut',
         onComplete: () => {
@@ -1817,47 +1702,31 @@ function returnToEarth() {
             }
           });
 
-          // Unboard avatar: add back to scene and scale to normal
-          state.scene.add(state.avatar);
-          state.avatar.scale.set(1.0, 1.0, 1.0);
-          state.avatar.position.set(-3.75, HEIGHTS.second + 3.56 + 0.1, 0.2); 
-          state.avatar.rotation.set(0, 0, 0);
-          state.avatar.setState('walking');
+          state.currentRoom = 'home';
+          state.isSpaceTrip = false;
+          state.isTransitioning = false;
 
-          // Smoothly glide avatar back to Ground Floor Home sofa
-          const homePos = roomPositions.home;
-          gsap.timeline()
-            .to(state.avatar.position, {
-              x: homePos.action.x,
-              y: homePos.action.y,
-              z: homePos.action.z,
-              duration: 2.0,
-              ease: 'power2.inOut'
-            })
-            .add(() => {
-              state.avatar.rotation.y = homePos.faceDirection;
-              state.avatar.setState('sitting');
-              state.currentRoom = 'home';
-              state.isSpaceTrip = false;
-              state.isTransitioning = false;
+          // Reactivate navigation panel & button highlights
+          document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+          const homeBtn = document.getElementById('btn-home');
+          if (homeBtn) homeBtn.classList.add('active');
 
-              // Reactivate navigation panel & button highlights
-              document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-              const homeBtn = document.getElementById('btn-home');
-              if (homeBtn) homeBtn.classList.add('active');
-
-              const panels = document.querySelectorAll('.info-card');
-              panels.forEach(p => p.classList.remove('active'));
-              const lobbyPanel = document.querySelector(`.info-card[id-panel="home"]`);
-              if (lobbyPanel) lobbyPanel.classList.add('active');
-            });
+          const panels = document.querySelectorAll('.info-card');
+          panels.forEach(p => p.classList.remove('active'));
+          const lobbyPanel = document.querySelector(`.info-card[id-panel="home"]`);
+          if (lobbyPanel) lobbyPanel.classList.add('active');
         }
       });
 
-      gsap.to(state.helicopter.rotation, {
-        x: 0,
-        y: 0,
+      const qStart = state.helicopter.quaternion.clone();
+      const qEnd = state.helicopter.userData.originalQ;
+      const qProxy = { t: 0 };
+      gsap.to(qProxy, {
+        t: 1.0,
         duration: 1.2,
+        onUpdate: () => {
+          state.helicopter.quaternion.slerpQuaternions(qStart, qEnd, qProxy.t);
+        },
         ease: 'power1.inOut'
       });
 
@@ -1888,7 +1757,10 @@ function returnToEarth() {
     ease: 'power2.inOut'
   }, '+=0.1');
 
-  const targetView = cameraViews.home;
+  const targetView = {
+    position: new THREE.Vector3(-16.5, 12.0, 19.5),
+    target: new THREE.Vector3(0.0, 2.2, 0.0)
+  };
   const isMobile = window.innerWidth < 768;
   const mobileMultiplier = isMobile ? 1.65 : 1.0;
 
@@ -1973,11 +1845,11 @@ function returnToEarth() {
     z: state.isDarkMode ? 1.0 : 0.001,
     duration: 3.8,
     onComplete: () => {
-      // Re-enable inspection bounds after return to earth completes
-      state.controls.minDistance = 3.0;
-      state.controls.maxDistance = 21.0;
-      state.controls.maxPolarAngle = Math.PI / 2 + 0.45;
-      state.controls.minPolarAngle = Math.PI / 2 - 0.55;
+      // Re-enable globe exploration bounds after space trip completes
+      state.controls.minDistance = GLOBE.radius + 2.0;
+      state.controls.maxDistance = 250.0;
+      state.controls.maxPolarAngle = Math.PI;
+      state.controls.minPolarAngle = 0;
       state.controls.update();
     },
     ease: 'power2.inOut'
